@@ -38,11 +38,11 @@ function Header() {
 
         <nav>
           <a href="/" className="active">Home</a>
-          <a href="#">About</a>
+          <a href="/About">About</a>
           <a href="#officers">Officers</a>
           <a href="#systems">Systems</a>
           <a href="/login" className="nav-login">Login</a>
-          <a href="/register" className="nav-register">Register</a>
+          {/* <a href="/register" className="nav-register">Register</a> */}
         </nav>
       </header>
     </>
