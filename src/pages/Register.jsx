@@ -1,5 +1,5 @@
 // src/pages/Register.jsx
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef, navigate} from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { getStates } from '../api/client';
@@ -13,6 +13,8 @@ const Register = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
+
+  const defaultStateSetRef = useRef(false);
 
   // Dynamic states from backend
   const [states, setStates] = useState([]);
@@ -30,14 +32,25 @@ const Register = () => {
     termsAccepted: false,
   });
 
-  // Fetch states from backend on mount
+// Fetch states from backend on mount
   useEffect(() => {
     const fetchStates = async () => {
       try {
         setStatesLoading(true);
         const response = await getStates();
-        // Expecting array of { state_id, name }
-        setStates(Array.isArray(response.data) ? response.data : []);
+        const data = response.data?.data || [];
+        const mapped = Array.isArray(data) ? data.map(s => ({ state_id: s.id, name: s.name })) : [];
+        setStates(mapped);
+        if (!defaultStateSetRef.current && mapped.length > 0) {
+          const taraba = mapped.find((s) => s.name.toLowerCase() === 'taraba');
+          if (taraba) {
+            setFormData((prev) => {
+              if (prev.state_id) return prev;
+              defaultStateSetRef.current = true;
+              return { ...prev, state_id: taraba.state_id };
+            });
+          }
+        }
       } catch (err) {
         console.error('Failed to load states:', err);
         setError('Unable to load states. Please refresh the page and try again.');
@@ -72,12 +85,12 @@ const Register = () => {
       setError('Please select your state.');
       return false;
     }
-    if (!email || !email.includes('@')) {
+    if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
       setError('Please enter a valid email address.');
       return false;
     }
-    if (password.length < 8) {
-      setError('Password must be at least 8 characters long.');
+    if (password.length < 6 || !/[A-Z]/.test(password) || !/[a-z]/.test(password) || !/[0-9]/.test(password)) {
+      setError('Password must be at least 6 characters with uppercase, lowercase, and a number.');
       return false;
     }
     if (password !== confirmPassword) {
@@ -113,7 +126,8 @@ const Register = () => {
 
       await register(userData);
       setSuccess(
-        '✅ Registration submitted successfully! Your account is under review. You will receive a confirmation email within 24–48 hours.'
+        //'✅ Registration submitted successfully! Your account is under review. You will receive a confirmation email within 24–48 hours.'
+        navigate('/login')
       );
 
       // Reset form
@@ -315,7 +329,7 @@ const Register = () => {
                   <input
                     type="password"
                     id="password"
-                    placeholder="Minimum 6 characters"
+                    placeholder="Min. 6 chars (upper, lower, number)"
                     value={formData.password}
                     onChange={handleChange}
                     required

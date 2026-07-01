@@ -45,7 +45,7 @@ const Login = () => {
 
     try {
       await login({ email: formData.email.trim(), password: formData.password });
-      navigate('/dashboard');
+      navigate('/admindashboard');
     } catch (err) {
       setError(getLoginErrorMessage(err));
     } finally {

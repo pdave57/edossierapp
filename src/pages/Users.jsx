@@ -1,11 +1,10 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
-import api from '../api/client';
+import { getUsers, deleteUser, updateUser, assignUserRole } from '../api/client';
 import AlertBox from '../components/common/AlertBox';
-import Footer from '../components/Footer';
 
 const Users = () => {
-  const { user: _user } = useAuth();
+  const { user: _user, token } = useAuth();
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -14,8 +13,8 @@ const Users = () => {
   const [modalMode, setModalMode] = useState('view');
 
   const [editForm, setEditForm] = useState({
-    firstName: '',
-    lastName: '',
+    first_name: '',
+    last_name: '',
     email: '',
     phone: '',
     school: '',
@@ -27,12 +26,22 @@ const Users = () => {
   });
 
   const fetchUsers = async () => {
+    if (!token) {
+      setError('You must be logged in to view users.');
+      setLoading(false);
+      return;
+    }
     try {
       setLoading(true);
-      const data = await api.getUsers();
-      setUsers(data);
-    } catch (_err) {
-      setError('Failed to fetch users');
+      setError('');
+      const res = await getUsers();
+      // Backend may return the array directly or wrapped in a `data` / `users` field
+      const list = Array.isArray(res.data) ? res.data : (res.data?.users ?? res.data?.data ?? []);
+      setUsers(list);
+    } catch (err) {
+      const status = err?.response?.status;
+      const msg = err?.response?.data?.message || err?.message || 'Unknown error';
+      setError(`Failed to fetch users (${status ?? 'network error'}): ${msg}`);
     } finally {
       setLoading(false);
     }
@@ -40,13 +49,13 @@ const Users = () => {
 
   useEffect(() => {
     fetchUsers();
-  }, []);
+  }, [token]);
 
   const handleEditUser = (user) => {
     setSelectedUser(user);
     setEditForm({
-      firstName: user.firstName || '',
-      lastName: user.lastName || '',
+      first_name: user.first_name || '',
+      last_name: user.last_name || '',
       email: user.email || '',
       phone: user.phone || '',
       school: user.school || '',
@@ -66,7 +75,7 @@ const Users = () => {
   const handleDeleteUser = async (userId) => {
     if (window.confirm('Are you sure you want to delete this user?')) {
       try {
-        await api.deleteUser(userId);
+        await deleteUser(userId);
         await fetchUsers();
       } catch (_err) {
         setError('Failed to delete user');
@@ -77,7 +86,7 @@ const Users = () => {
   const handleUpdateUser = async (e) => {
     e.preventDefault();
     try {
-      await api.updateUser(selectedUser.id, editForm);
+      await updateUser(selectedUser.id, editForm);
       await fetchUsers();
       setShowModal(false);
     } catch (_err) {
@@ -88,11 +97,19 @@ const Users = () => {
   const handleAssignRoleSubmit = async (e) => {
     e.preventDefault();
     try {
-      await api.assignRole(selectedUser.id, roleForm.roleId);
+      await assignUserRole(selectedUser.id, { roleId: roleForm.roleId });
       await fetchUsers();
       setShowModal(false);
-    } catch (_err) {
-      setError('Failed to assign role');
+    } catch (err) {
+      const status = err?.response?.status;
+      const backendMsg = typeof err?.response?.data?.message === 'string'
+        ? err?.response?.data?.message
+        : typeof err?.response?.data?.error === 'string'
+        ? err?.response?.data?.error
+        : typeof err?.message === 'string'
+        ? err?.message
+        : JSON.stringify(err?.response?.data || err?.message || 'Unknown error');
+      setError(`Failed to assign role (${status ?? 'network error'}): ${backendMsg}`);
     }
   };
 
@@ -102,7 +119,6 @@ const Users = () => {
         <div style={{ padding: '60px 40px', textAlign: 'center' }}>
           <div className="loading-spinner">Loading...</div>
         </div>
-        <Footer />
       </>
     );
   }
@@ -131,7 +147,7 @@ const Users = () => {
             <tbody>
               {users.map(u => (
                 <tr key={u.id} style={{ borderBottom: '1px solid var(--border)' }}>
-                  <td style={{ padding: '15px' }}>{u.firstName} {u.lastName}</td>
+                  <td style={{ padding: '15px' }}>{u.first_name} {u.last_name}</td>
                   <td style={{ padding: '15px' }}>{u.email}</td>
                   <td style={{ padding: '15px' }}>{u.school || 'N/A'}</td>
                   <td style={{ padding: '15px' }}>
@@ -140,7 +156,7 @@ const Users = () => {
                     </span>
                   </td>
                   <td style={{ padding: '15px' }}>
-                    <button onClick={() => handleEditUser(u)} style={{ marginRight: '8px', padding: '6px 12px', background: 'var(--primary)', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer' }}>
+                    <button onClick={() => handleEditUser(u)} style={{ marginRight: '8px', padding: '6px 12px', background: '#1e3d6b', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer' }}>
                       Edit
                     </button>
                     <button onClick={() => handleAssignRole(u)} style={{ marginRight: '8px', padding: '6px 12px', background: '#6c5ce7', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer' }}>
@@ -172,8 +188,8 @@ const Users = () => {
                   <label>First Name</label>
                   <input
                     type="text"
-                    value={editForm.firstName}
-                    onChange={(e) => setEditForm({...editForm, firstName: e.target.value})}
+                    value={editForm.first_name}
+                    onChange={(e) => setEditForm({...editForm, first_name: e.target.value})}
                     style={{ width: '100%', padding: '10px', border: '1px solid var(--border)', borderRadius: '8px' }}
                     required
                   />
@@ -182,8 +198,8 @@ const Users = () => {
                   <label>Last Name</label>
                   <input
                     type="text"
-                    value={editForm.lastName}
-                    onChange={(e) => setEditForm({...editForm, lastName: e.target.value})}
+                    value={editForm.last_name}
+                    onChange={(e) => setEditForm({...editForm, last_name: e.target.value})}
                     style={{ width: '100%', padding: '10px', border: '1px solid var(--border)', borderRadius: '8px' }}
                     required
                   />
@@ -217,7 +233,7 @@ const Users = () => {
                   />
                 </div>
                 <div style={{ display: 'flex', gap: '10px', marginTop: '20px' }}>
-                  <button type="submit" style={{ flex: 1, padding: '12px', background: 'var(--primary)', color: 'white', border: 'none', borderRadius: '8px', cursor: 'pointer' }}>
+                  <button type="submit" style={{ flex: 1, padding: '12px', background: '#1e3d6b', color: 'white', border: 'none', borderRadius: '8px', cursor: 'pointer' }}>
                     Update User
                   </button>
                   <button type="button" onClick={() => setShowModal(false)} style={{ flex: 1, padding: '12px', background: 'var(--bg-light)', border: '1px solid var(--border)', borderRadius: '8px', cursor: 'pointer' }}>
@@ -245,7 +261,7 @@ const Users = () => {
                   </select>
                 </div>
                 <div style={{ display: 'flex', gap: '10px', marginTop: '20px' }}>
-                  <button type="submit" style={{ flex: 1, padding: '12px', background: 'var(--primary)', color: 'white', border: 'none', borderRadius: '8px', cursor: 'pointer' }}>
+                  <button type="button" onClick={handleAssignRoleSubmit} style={{ flex: 1, padding: '12px', background: 'var(--primary)', color: 'white', border: 'none', borderRadius: '8px', cursor: 'pointer' }}>
                     Assign Role
                   </button>
                   <button type="button" onClick={() => setShowModal(false)} style={{ flex: 1, padding: '12px', background: 'var(--bg-light)', border: '1px solid var(--border)', borderRadius: '8px', cursor: 'pointer' }}>
@@ -257,8 +273,6 @@ const Users = () => {
           </div>
         </div>
       )}
-
-      <Footer />
     </>
   );
 };

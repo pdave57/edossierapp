@@ -61,7 +61,7 @@ export const getMe = () => api.get('/api/v1/auth/me');
 export const logoutUser = () => api.post('/api/v1/auth/logout');
 
 // --- Users ---
-export const getUsers = () => api.get('/api/v1/users/');
+export const getUsers = () => api.get('/api/v1/users');
 export const getUser = (id) => api.get(`/api/v1/users/${id}`);
 export const updateUser = (id, data) => api.put(`/api/v1/users/${id}`, data);
 export const deleteUser = (id) => api.delete(`/api/v1/users/${id}`);
@@ -69,33 +69,34 @@ export const assignUserRole = (id, data) => api.post(`/api/v1/users/${id}/roles`
 export const revokeUserRole = (id, roleId) => api.delete(`/api/v1/users/${id}/roles/${roleId}`);
 
 // --- Roles ---
-export const getRoles = () => api.get('/api/v1/roles/');
-export const createRole = (data) => api.post('/api/v1/roles/', data);
+export const getRoles = () => api.get('/api/v1/roles');
+export const createRole = (data) => api.post('/api/v1/roles', data);
 export const getRole = (id) => api.get(`/api/v1/roles/${id}`);
 export const updateRole = (id, data) => api.put(`/api/v1/roles/${id}`, data);
 export const deleteRole = (id) => api.delete(`/api/v1/roles/${id}`);
 
 // --- Lgas ---
-export const getLgas = () => api.get("/api/v1/lgas/");
-export const createLga = (data) => api.post("/api/v1/lgas/", data);
+export const getLgas = () => api.get('/api/v1/lgas');
+export const getStatelgas = (id) => api.get(`/api/v1/states/${id}/lgas`);
+export const createLga = (data) => api.post('/api/v1/lgas', data);
 export const updateLga = (id, data) => api.put(`/api/v1/lgas/${id}`, data);
 export const deleteLga = (id) => api.delete(`/api/v1/lgas/${id}`);
 
 // --- States ---
-export const getStates = () => api.get("/api/v1/states/");
-export const createState = (data) => api.post("/api/v1/states/", data);
+export const getStates = () => api.get('/api/v1/states');
+export const createState = (data) => api.post('/api/v1/states', data);
 export const updateState = (id, data) => api.put(`/api/v1/states/${id}`, data);
 export const deleteState = (id) => api.delete(`/api/v1/states/${id}`);
 
 // --- Zones ---
-export const getZones = () => api.get("/api/v1/zones/");
-export const createZone = (data) => api.post("/api/v1/zones/", data);
+export const getZones = () => api.get('/api/v1/zones');
+export const createZone = (data) => api.post('/api/v1/zones', data);
 export const updateZone = (id, data) => api.put(`/api/v1/zones/${id}`, data);
 export const deleteZone = (id) => api.delete(`/api/v1/zones/${id}`);
  
 // --- Schools ---
-export const getSchools = () => api.get('/api/v1/schools/');
-export const createSchool = (data) => api.post('/api/v1/schools/', data);
+export const getSchools = () => api.get('/api/v1/schools');
+export const createSchool = (data) => api.post('/api/v1/schools', data);
 export const getSchool = (id) => api.get(`/api/v1/schools/${id}`);
 export const updateSchool = (id, data) => api.put(`/api/v1/schools/${id}`, data);
 export const deleteSchool = (id) => api.delete(`/api/v1/schools/${id}`);
