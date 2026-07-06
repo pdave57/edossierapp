@@ -17,17 +17,16 @@ function Hero() {
 
         <p>
           A unified, secure platform managing state education data —
-          from school census and personnel records to e-dossier
-          administration.
+          from school census, personnel records to e-dossier administration.
         </p>
 
         <div className="hero-btns">
           <a href="#" className="btn-green">
-            Create Account →
+            Student Login →
           </a>
 
-          <a href="#" className="btn-ghost-white">
-            Staff Login
+          <a href="/login" className="btn-ghost-white">
+            Login
           </a>
         </div>
       </div>

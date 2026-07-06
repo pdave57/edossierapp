@@ -6,6 +6,8 @@
 :root {
   /* greens */
   --g:      #82C46C;   /* primary green */
+  --primary: var(--g);
+  --primaryText: #3F7A2F;
   --gd:     #5d9e4a;   /* dark green — hover/active */
   --gdd:    #3e7430;   /* deepest — pressed */
   --gl:     #aadda0;   /* light green */
@@ -21,6 +23,7 @@
   /* neutrals */
   --white:  #ffffff;
   --off:    #f7faf4;
+  --bg-light: #f7faf4;
   --gray:   #4e5e6a;
   --gray-l: #8fa0ae;
   --border: #d4e8ce;
@@ -108,6 +111,40 @@ nav a.active{background:var(--g);color:var(--white);font-weight:600;}
   border:2px solid var(--n) !important;
 }
 .nav-register:hover{background:var(--nm) !important;border-color:var(--nm) !important;}
+
+/* ══ HAMBURGER + MOBILE NAV ══ */
+.hamburger{
+  display:none;
+  flex-direction:column;
+  justify-content:center;
+  align-items:center;
+  gap:5px;
+  width:34px;height:34px;
+  background:none;
+  border:none;
+  cursor:pointer;
+  padding:0;
+  margin-left:auto;
+  position:relative;
+  z-index:201;
+  flex-shrink:0;
+}
+.hamburger span{
+  display:block;
+  width:24px;height:2.5px;
+  background:var(--n);
+  border-radius:2px;
+  transition:transform .25s ease,opacity .25s ease;
+  transform-origin:center;
+}
+.hamburger.is-open span:nth-child(1){transform:translateY(7.5px) rotate(45deg);}
+.hamburger.is-open span:nth-child(2){opacity:0;transform:scaleX(0);}
+.hamburger.is-open span:nth-child(3){transform:translateY(-7.5px) rotate(-45deg);}
+
+.nav-login.active{
+  background:var(--g) !important;
+  color:var(--white) !important;
+}
 
 /* ══ FOOTER ══ */
 footer{background:var(--n);color:rgba(255,255,255,.55);padding:60px 64px 28px;}
@@ -270,12 +307,32 @@ footer{background:var(--n);color:rgba(255,255,255,.55);padding:60px 64px 28px;}
   clip-path: ellipse(58% 100% at 50% 100%);
 }
 .o-avatar {
-  width: 88px; height: 88px; border-radius: 50%; margin: 0 auto 14px;
+  width: 100px; height: 100px; border-radius: 15px; margin: 0 auto 14px;
   background: rgba(255,255,255,.08);
-  border: 3px solid var(--g);
+  border: 2px solid #3e7430;
   display: flex; align-items: center; justify-content: center;
   font-size: 36px; position: relative; z-index: 1;
   box-shadow: 0 0 0 6px rgba(130,196,108,.15);
+}
+/* ══ OFFICER AVATAR — image fit & curve clip ══ */
+.o-avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;          /* resize without distortion */
+  object-position: center top; /* keep face centered (fallback: top for portraits) */
+  border-radius: 12px;        /* sits inside the 15px container + 2px border */
+  display: block;
+  flex-shrink: 0;
+  background: rgba(255,255,255,.08); /* tint while image loads */
+}
+
+/* Optional: subtle zoom on card hover for a premium feel */
+.o-card:hover .o-avatar img {
+  transform: scale(1.05);
+  transition: transform .45s ease;
+}
+.o-card .o-avatar img {
+  transition: transform .45s ease;
 }
 .o-badge {
   position: relative; z-index: 1;
@@ -766,10 +823,11 @@ footer{background:var(--n);color:rgba(255,255,255,.55);padding:60px 64px 28px;}
 
 /* Alert boxes */
 .alert-box{
-  display:none;padding:13px 16px;border-radius:10px;
-  font-size:13.5px;margin-bottom:20px;line-height:1.55;
+   display:block;padding:13px 16px;border-radius:10px;
+   font-size:13.5px;margin-bottom:20px;line-height:1.55;
 }
-.alert-box.err{background:#fff2f2;border:1.5px solid #ffbcbc;color:#c0392b;}
+.alert-box.error{background:#fff2f2;border:1.5px solid #ffbcbc;color:#c0392b;}
+.alert-box.success{background:#f0fff5;border:1.5px solid var(--gl);color:var(--gdd);}
 .alert-box.ok{background:#f0fff5;border:1.5px solid var(--gl);color:var(--gdd);}
 
 /* Submit button full-width */
@@ -813,8 +871,30 @@ footer{background:var(--n);color:rgba(255,255,255,.55);padding:60px 64px 28px;}
 /* ══ RESPONSIVE ══ */
 @media(max-width:900px){
   .topbar{padding:6px 20px;font-size:11px;}
-  header{padding:0 20px;min-height:70px;}
-  nav a:not(.active):not(.nav-login):not(.nav-register){display:none;}
+  header{padding:0 20px;min-height:70px;flex-wrap:wrap;}
+  .logo-text .l-title{font-size:14px;letter-spacing:-.005em;}
+  .logo-text .l-sub{font-size:8.5px;letter-spacing:.06em;}
+  .hamburger{display:flex;}
+  nav{
+    display:none;
+    flex:0 0 100%;
+    flex-direction:column;
+    align-items:stretch;
+    gap:6px;
+    padding:10px 0 16px;
+    border-top:2px solid var(--border);
+    margin-top:8px;
+  }
+  nav.is-open{display:flex;}
+  nav a,
+  nav .nav-link{
+    width:100%;
+    text-align:left;
+    border-radius:8px;
+    padding:14px 16px;
+    font-size:15px;
+  }
+  nav .nav-login{margin-left:0;width:100%;text-align:center;}
   footer{padding:44px 20px 24px;}
   .footer-inner{grid-template-columns:1fr 1fr;gap:28px;}
 }

@@ -1,6 +1,6 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '../context/AuthContext';
-import { getUsers, deleteUser, updateUser, assignUserRole } from '../api/client';
+import { getUsers, deleteUser, updateUser, assignUserRole, getRoles } from '../api/client';
 import AlertBox from '../components/common/AlertBox';
 
 const Users = () => {
@@ -24,8 +24,10 @@ const Users = () => {
   const [roleForm, setRoleForm] = useState({
     roleId: '',
   });
+  const [roles, setRoles] = useState([]);
+  const [rolesLoading, setRolesLoading] = useState(true);
 
-  const fetchUsers = async () => {
+  const fetchUsers = useCallback(async () => {
     if (!token) {
       setError('You must be logged in to view users.');
       setLoading(false);
@@ -35,7 +37,6 @@ const Users = () => {
       setLoading(true);
       setError('');
       const res = await getUsers();
-      // Backend may return the array directly or wrapped in a `data` / `users` field
       const list = Array.isArray(res.data) ? res.data : (res.data?.users ?? res.data?.data ?? []);
       setUsers(list);
     } catch (err) {
@@ -45,11 +46,34 @@ const Users = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [token]);
 
   useEffect(() => {
     fetchUsers();
-  }, [token]);
+  }, [fetchUsers]);
+
+  useEffect(() => {
+    let isMounted = true;
+
+    getRoles()
+      .then((res) => {
+        if (!isMounted) return;
+        const list = Array.isArray(res.data) ? res.data : (res.data?.roles ?? res.data?.data ?? []);
+        setRoles(list);
+      })
+      .catch((err) => {
+        if (!isMounted) return;
+        console.error('Failed to fetch roles:', err);
+      })
+      .finally(() => {
+        if (!isMounted) return;
+        setRolesLoading(false);
+      });
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
 
   const handleEditUser = (user) => {
     setSelectedUser(user);
@@ -77,7 +101,7 @@ const Users = () => {
       try {
         await deleteUser(userId);
         await fetchUsers();
-      } catch (_err) {
+      } catch {
         setError('Failed to delete user');
       }
     }
@@ -89,15 +113,20 @@ const Users = () => {
       await updateUser(selectedUser.id, editForm);
       await fetchUsers();
       setShowModal(false);
-    } catch (_err) {
+    } catch {
       setError('Failed to update user');
     }
   };
 
   const handleAssignRoleSubmit = async (e) => {
     e.preventDefault();
+    const roleIdValue = roleForm.roleId;
+    if (!roleIdValue) {
+      setError('Please select a role.');
+      return;
+    }
     try {
-      await assignUserRole(selectedUser.id, { roleId: roleForm.roleId });
+      await assignUserRole(selectedUser.id, { role_id: String(roleIdValue) });
       await fetchUsers();
       setShowModal(false);
     } catch (err) {
@@ -107,7 +136,7 @@ const Users = () => {
         : typeof err?.response?.data?.error === 'string'
         ? err?.response?.data?.error
         : typeof err?.message === 'string'
-        ? err?.message
+        ? err.message
         : JSON.stringify(err?.response?.data || err?.message || 'Unknown error');
       setError(`Failed to assign role (${status ?? 'network error'}): ${backendMsg}`);
     }
@@ -252,16 +281,18 @@ const Users = () => {
                     onChange={(e) => setRoleForm({...roleForm, roleId: e.target.value})}
                     style={{ width: '100%', padding: '10px', border: '1px solid var(--border)', borderRadius: '8px' }}
                     required
+                    disabled={rolesLoading}
                   >
                     <option value="">Select a role...</option>
-                    <option value="1">Admin</option>
-                    <option value="2">School Head</option>
-                    <option value="3">Teaching Staff</option>
-                    <option value="4">Default User</option>
+                    {roles.map((role) => (
+                      <option key={role.id} value={role.id}>
+                        {role.name}
+                      </option>
+                    ))}
                   </select>
                 </div>
                 <div style={{ display: 'flex', gap: '10px', marginTop: '20px' }}>
-                  <button type="button" onClick={handleAssignRoleSubmit} style={{ flex: 1, padding: '12px', background: 'var(--primary)', color: 'white', border: 'none', borderRadius: '8px', cursor: 'pointer' }}>
+                  <button type="button" onClick={handleAssignRoleSubmit} style={{ flex: 1, padding: '12px', background: '#1e3d6b', color: 'white', border: 'none', borderRadius: '8px', cursor: 'pointer' }}>
                     Assign Role
                   </button>
                   <button type="button" onClick={() => setShowModal(false)} style={{ flex: 1, padding: '12px', background: 'var(--bg-light)', border: '1px solid var(--border)', borderRadius: '8px', cursor: 'pointer' }}>

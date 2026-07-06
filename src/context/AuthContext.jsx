@@ -21,6 +21,7 @@ export const AuthProvider = ({ children }) => {
       console.error('Failed to fetch user session:', error);
       // Clear invalid token if the API rejects it
       localStorage.removeItem('access_token');
+      localStorage.removeItem('refresh_token');
       setToken(null);
       setUser(null);
     } finally {
@@ -35,9 +36,12 @@ export const AuthProvider = ({ children }) => {
   const login = async (credentials) => {
     const response = await loginUser(credentials);
     const authData = response.data?.data || response.data;
-    const { access_token } = authData;
+    const { access_token, refresh_token } = authData;
     
     localStorage.setItem('access_token', access_token);
+    if (refresh_token) {
+      localStorage.setItem('refresh_token', refresh_token);
+    }
     setToken(access_token);
     // The useEffect will automatically trigger fetchUser() due to token change
     return authData;
@@ -55,6 +59,7 @@ export const AuthProvider = ({ children }) => {
       console.error('Logout error:', error);
     } finally {
       localStorage.removeItem('access_token');
+      localStorage.removeItem('refresh_token');
       setToken(null);
       setUser(null);
     }

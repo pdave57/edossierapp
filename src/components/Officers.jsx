@@ -2,8 +2,8 @@ function Officers() {
   const officers = [
     {
       badge: "State Governor",
-      avatar: "🧑‍💼",
-      name: "H.E. Gov. Emmanuel A. Bello",
+      avatar: "/images/gov-kefas-ogbu2.jpg",
+      name: "H.E. Gov. Kefas Ogbu",
       role: "Executive Governor",
       office: "Government House",
       tenureLabel: "In Office",
@@ -14,8 +14,8 @@ function Officers() {
     },
     {
       badge: "Commissioner",
-      avatar: "👩‍💼",
-      name: "Hon. Dr. Ngozi Okafor-Williams",
+      avatar: "/images/commissioner1.jpg",
+      name: "Hon. Dr. Augustina Godwin",
       role: "Commissioner for Education",
       office: "Ministry HQ, Block A",
       tenureLabel: "Appointed",
@@ -26,19 +26,19 @@ function Officers() {
     },
     {
       badge: "Permanent Secretary",
-      avatar: "👨‍💼",
-      name: "Mr. Adeola S. Akinwande",
+      avatar: "/images/permanentsec.jpg",
+      name: "Mr. Idris A. Goje",
       role: "Permanent Secretary",
       office: "Ministry HQ, Block B",
       tenureLabel: "In Post",
-      tenureValue: "March 2022",
+      tenureValue: "May 2024",
       focus: "Administration & Budget",
       messageLink: "#",
       profileLink: "/about",
     },
     {
       badge: "Director",
-      avatar: "👩‍🏫",
+      avatar: "/assets/images/avatar/male.png",
       name: "Prof. Amaka Chibueze-Eze",
       role: "Director, Basic & Secondary Edu.",
       office: "Ministry HQ, Block C",
@@ -50,6 +50,8 @@ function Officers() {
     },
   ];
 
+  const fallbackAvatar = "/assets/images/avatar/male.png";
+
   return (
     <section className="officers" id="officers">
       <div className="sec-eyebrow">Leadership</div>
@@ -59,7 +61,16 @@ function Officers() {
         {officers.map((officer, index) => (
           <div key={index} className="o-card">
             <div className="o-top">
-              <div className="o-avatar">{officer.avatar}</div>
+              <div className="o-avatar">
+                <img
+                  src={officer.avatar}
+                  alt={officer.name}
+                  onError={(e) => {
+                    e.target.onerror = null;
+                    e.target.src = fallbackAvatar;
+                  }}
+                />
+              </div>
               <div className="o-badge">{officer.badge}</div>
             </div>
 

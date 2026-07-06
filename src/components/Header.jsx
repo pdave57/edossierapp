@@ -1,4 +1,34 @@
+import { useState, useEffect } from 'react';
+import { NavLink, useLocation } from 'react-router-dom';
+
 function Header() {
+  const [menuOpen, setMenuOpen] = useState(false);
+  const location = useLocation();
+
+  useEffect(() => {
+    const handleResize = () => {
+      if (window.innerWidth > 900) {
+        setMenuOpen(false);
+      }
+    };
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
+  const navItems = [
+    { path: '/', label: 'Home', hash: false },
+    { path: '/About', label: 'About', hash: false },
+    { path: '#officers', label: 'Officers', hash: true },
+    { path: '#systems', label: 'Systems', hash: true },
+    { path: '/login', label: 'Login', hash: false, className: 'nav-login' },
+  ];
+
+  const isActive = (path) => {
+    if (path.startsWith('#')) return false;
+    if (path === '/') return location.pathname === '/';
+    return location.pathname.startsWith(path);
+  };
+
   return (
     <>
       <div className="topbar">
@@ -36,13 +66,45 @@ function Header() {
           </div>
         </div>
 
-        <nav>
-          <a href="/" className="active">Home</a>
-          <a href="/About">About</a>
-          <a href="#officers">Officers</a>
-          <a href="#systems">Systems</a>
-          <a href="/login" className="nav-login">Login</a>
-          {/* <a href="/register" className="nav-register">Register</a> */}
+        <button
+          className={`hamburger ${menuOpen ? 'is-open' : ''}`}
+          onClick={() => setMenuOpen(!menuOpen)}
+          aria-label="Toggle navigation menu"
+          aria-expanded={menuOpen}
+        >
+          <span></span>
+          <span></span>
+          <span></span>
+        </button>
+
+        <nav className={menuOpen ? 'is-open' : ''}>
+          {navItems.map((item) => {
+            if (item.hash) {
+              return (
+                <a
+                  key={item.path}
+                  href={item.path}
+                  className={item.className || ''}
+                  onClick={() => setMenuOpen(false)}
+                >
+                  {item.label}
+                </a>
+              );
+            }
+            return (
+              <NavLink
+                key={item.path}
+                to={item.path}
+                className={({ isActive: linkActive }) =>
+                  `nav-link ${linkActive ? 'active' : ''} ${item.className || ''}`
+                }
+                end={item.path === '/'}
+                onClick={() => setMenuOpen(false)}
+              >
+                {item.label}
+              </NavLink>
+            );
+          })}
         </nav>
       </header>
     </>

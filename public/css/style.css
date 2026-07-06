@@ -6,6 +6,8 @@
 :root {
   /* greens */
   --g:      #82C46C;   /* primary green */
+  --primary: var(--g);
+  --primaryText: #3F7A2F;
   --gd:     #5d9e4a;   /* dark green — hover/active */
   --gdd:    #3e7430;   /* deepest — pressed */
   --gl:     #aadda0;   /* light green */
@@ -21,6 +23,7 @@
   /* neutrals */
   --white:  #ffffff;
   --off:    #f7faf4;
+  --bg-light: #f7faf4;
   --gray:   #4e5e6a;
   --gray-l: #8fa0ae;
   --border: #d4e8ce;
@@ -270,9 +273,9 @@ footer{background:var(--n);color:rgba(255,255,255,.55);padding:60px 64px 28px;}
   clip-path: ellipse(58% 100% at 50% 100%);
 }
 .o-avatar {
-  width: 88px; height: 88px; border-radius: 50%; margin: 0 auto 14px;
+  width: 75px; height: 75px; border-radius: 15px; margin: 0 auto 14px;
   background: rgba(255,255,255,.08);
-  border: 3px solid var(--g);
+  border: 2px solid #3e7430;
   display: flex; align-items: center; justify-content: center;
   font-size: 36px; position: relative; z-index: 1;
   box-shadow: 0 0 0 6px rgba(130,196,108,.15);
@@ -766,10 +769,10 @@ footer{background:var(--n);color:rgba(255,255,255,.55);padding:60px 64px 28px;}
 
 /* Alert boxes */
 .alert-box{
-  display:none;padding:13px 16px;border-radius:10px;
-  font-size:13.5px;margin-bottom:20px;line-height:1.55;
+   display:block;padding:13px 16px;border-radius:10px;
+   font-size:13.5px;margin-bottom:20px;line-height:1.55;
 }
-.alert-box.err{background:#fff2f2;border:1.5px solid #ffbcbc;color:#c0392b;}
+.alert-box.error{background:#fff2f2;border:1.5px solid #ffbcbc;color:#c0392b;}
 .alert-box.ok{background:#f0fff5;border:1.5px solid var(--gl);color:var(--gdd);}
 
 /* Submit button full-width */

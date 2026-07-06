@@ -8,7 +8,7 @@ import Header from "./components/Header";
 import Hero from "./components/Hero";
 import Ticker from "./components/Ticker";
 import Officers from "./components/Officers";
-import DashboardComponent from "./components/Dashboard"; // placeholder: src/components/Dashboard.jsx not found
+import DashboardComponent from "./components/Dashboard";
 import Systems from "./components/Systems";
 import News from "./components/News";
 import QuickLinks from "./components/QuickLinks";
@@ -22,8 +22,15 @@ import About from './pages/AboutPage';
 import AdminPageLayout from './pages/AdminPageLayout';
 import AdminDashboard from './pages/AdminDashboard';
 import Roles from './pages/Roles';
+import Permission from './pages/Permission';
+import Zones from './pages/Zones';
+import Lgas from './pages/Lgas';
+import AcademicYears from './pages/AcademicYears';
+import Terms from './pages/Terms';
+import Levels from './pages/Levels';
+import Sublevels from './pages/Sublevels';
+import Subjects from './pages/Subjects';
 
-// 1. Private Route Wrapper Component
 const PrivateRoute = ({ children }) => {
   const { isAuthenticated, loading } = useAuth();
 
@@ -34,8 +41,7 @@ const PrivateRoute = ({ children }) => {
   return isAuthenticated ? children : <Navigate to="/login" replace />;
 };
 
-// Routes that use full-screen admin layout (no Header/Footer)
-const ADMIN_ROUTES = ["/admindashboard", "/users", "/roles"];
+const ADMIN_ROUTES = ["/admindashboard", "/users", "/roles", "/permissions", "/zones", "/lgas", "/academic-years", "/terms", "/levels", "/sublevels", "/subjects"];
 
 function AdminDashboardRoute() {
   const navigate = useNavigate();
@@ -45,6 +51,15 @@ function AdminDashboardRoute() {
       users: "/users",
       schools: "/schools",
       roles: "/roles",
+      zones: "/zones",
+      permissions: "/permissions",
+      lgas: "/lgas",
+      home: "/",
+      "academic-years": "/academic-years",
+      terms: "/terms",
+      levels: "/levels",
+      sublevels: "/sublevels",
+      subjects: "/subjects",
     };
     const path = routeMap[key];
     if (path) navigate(path);
@@ -52,11 +67,7 @@ function AdminDashboardRoute() {
 
   return (
     <PrivateRoute>
-      <AdminPageLayout
-        activeKey="dashboard"
-        onNavigate={handleNavigate}
-        permissions={null}
-      >
+      <AdminPageLayout activeKey="dashboard" onNavigate={handleNavigate} permissions={null}>
         <AdminDashboard />
       </AdminPageLayout>
     </PrivateRoute>
@@ -71,7 +82,15 @@ function UsersRoute() {
       users: "/users",
       schools: "/schools",
       roles: "/roles",
+      permissions: "/permissions",
+      zones: "/zones",
+      lgas: "/lgas",
       home: "/",
+      "academic-years": "/academic-years",
+      terms: "/terms",
+      levels: "/levels",
+      sublevels: "/sublevels",
+      subjects: "/subjects",
     };
     const path = routeMap[key];
     if (path) navigate(path);
@@ -79,11 +98,7 @@ function UsersRoute() {
 
   return (
     <PrivateRoute>
-      <AdminPageLayout
-        activeKey="users"
-        onNavigate={handleNavigate}
-        permissions={null}
-      >
+      <AdminPageLayout activeKey="users" onNavigate={handleNavigate} permissions={null}>
         <Users />
       </AdminPageLayout>
     </PrivateRoute>
@@ -98,7 +113,15 @@ function RolesRoute() {
       users: "/users",
       schools: "/schools",
       roles: "/roles",
+      permissions: "/permissions",
+      zones: "/zones",
+      lgas: "/lgas",
       home: "/",
+      "academic-years": "/academic-years",
+      terms: "/terms",
+      levels: "/levels",
+      sublevels: "/sublevels",
+      subjects: "/subjects",
     };
     const path = routeMap[key];
     if (path) navigate(path);
@@ -106,12 +129,256 @@ function RolesRoute() {
 
   return (
     <PrivateRoute>
-      <AdminPageLayout
-        activeKey="roles"
-        onNavigate={handleNavigate}
-        permissions={null}
-      >
+      <AdminPageLayout activeKey="roles" onNavigate={handleNavigate} permissions={null}>
         <Roles />
+      </AdminPageLayout>
+    </PrivateRoute>
+  );
+}
+
+function PermissionsRoute() {
+  const navigate = useNavigate();
+  const handleNavigate = (key) => {
+    const routeMap = {
+      dashboard: "/admindashboard",
+      users: "/users",
+      schools: "/schools",
+      roles: "/roles",
+      permissions: "/permissions",
+      zones: "/zones",
+      lgas: "/lgas",
+      home: "/",
+      "academic-years": "/academic-years",
+      terms: "/terms",
+      levels: "/levels",
+      sublevels: "/sublevels",
+      subjects: "/subjects",
+    };
+    const path = routeMap[key];
+    if (path) navigate(path);
+  };
+
+  return (
+    <PrivateRoute>
+      <AdminPageLayout activeKey="permissions" onNavigate={handleNavigate} permissions={null}>
+        <Permission />
+      </AdminPageLayout>
+    </PrivateRoute>
+  );
+}
+
+function ZonesRoute() {
+  const navigate = useNavigate();
+  const handleNavigate = (key) => {
+    const routeMap = {
+      dashboard: "/admindashboard",
+      users: "/users",
+      schools: "/schools",
+      roles: "/roles",
+      permissions: "/permissions",
+      zones: "/zones",
+      lgas: "/lgas",
+      home: "/",
+      "academic-years": "/academic-years",
+      terms: "/terms",
+      levels: "/levels",
+      sublevels: "/sublevels",
+      subjects: "/subjects",
+    };
+    const path = routeMap[key];
+    if (path) navigate(path);
+  };
+
+  return (
+    <PrivateRoute>
+      <AdminPageLayout activeKey="zones" onNavigate={handleNavigate} permissions={null}>
+        <Zones />
+      </AdminPageLayout>
+    </PrivateRoute>
+  );
+}
+
+function LgasRoute() {
+  const navigate = useNavigate();
+  const handleNavigate = (key) => {
+    const routeMap = {
+      dashboard: "/admindashboard",
+      users: "/users",
+      schools: "/schools",
+      roles: "/roles",
+      permissions: "/permissions",
+      zones: "/zones",
+      lgas: "/lgas",
+      home: "/",
+      "academic-years": "/academic-years",
+      terms: "/terms",
+      levels: "/levels",
+      sublevels: "/sublevels",
+      subjects: "/subjects",
+    };
+    const path = routeMap[key];
+    if (path) navigate(path);
+  };
+
+  return (
+    <PrivateRoute>
+      <AdminPageLayout activeKey="lgas" onNavigate={handleNavigate} permissions={null}>
+        <Lgas />
+      </AdminPageLayout>
+    </PrivateRoute>
+  );
+}
+
+function AcademicYearsRoute() {
+  const navigate = useNavigate();
+  const handleNavigate = (key) => {
+    const routeMap = {
+      dashboard: "/admindashboard",
+      users: "/users",
+      schools: "/schools",
+      roles: "/roles",
+      permissions: "/permissions",
+      zones: "/zones",
+      lgas: "/lgas",
+      home: "/",
+      "academic-years": "/academic-years",
+      terms: "/terms",
+      levels: "/levels",
+      sublevels: "/sublevels",
+      subjects: "/subjects",
+    };
+    const path = routeMap[key];
+    if (path) navigate(path);
+  };
+
+  return (
+    <PrivateRoute>
+      <AdminPageLayout activeKey="academic-years" onNavigate={handleNavigate} permissions={null}>
+        <AcademicYears />
+      </AdminPageLayout>
+    </PrivateRoute>
+  );
+}
+
+function TermsRoute() {
+  const navigate = useNavigate();
+  const handleNavigate = (key) => {
+    const routeMap = {
+      dashboard: "/admindashboard",
+      users: "/users",
+      schools: "/schools",
+      roles: "/roles",
+      permissions: "/permissions",
+      zones: "/zones",
+      lgas: "/lgas",
+      home: "/",
+      "academic-years": "/academic-years",
+      terms: "/terms",
+      levels: "/levels",
+      sublevels: "/sublevels",
+      subjects: "/subjects",
+    };
+    const path = routeMap[key];
+    if (path) navigate(path);
+  };
+
+  return (
+    <PrivateRoute>
+      <AdminPageLayout activeKey="terms" onNavigate={handleNavigate} permissions={null}>
+        <Terms />
+      </AdminPageLayout>
+    </PrivateRoute>
+  );
+}
+
+function LevelsRoute() {
+  const navigate = useNavigate();
+  const handleNavigate = (key) => {
+    const routeMap = {
+      dashboard: "/admindashboard",
+      users: "/users",
+      schools: "/schools",
+      roles: "/roles",
+      permissions: "/permissions",
+      zones: "/zones",
+      lgas: "/lgas",
+      home: "/",
+      "academic-years": "/academic-years",
+      terms: "/terms",
+      levels: "/levels",
+      sublevels: "/sublevels",
+      subjects: "/subjects",
+    };
+    const path = routeMap[key];
+    if (path) navigate(path);
+  };
+
+  return (
+    <PrivateRoute>
+      <AdminPageLayout activeKey="levels" onNavigate={handleNavigate} permissions={null}>
+        <Levels />
+      </AdminPageLayout>
+    </PrivateRoute>
+  );
+}
+
+function SublevelsRoute() {
+  const navigate = useNavigate();
+  const handleNavigate = (key) => {
+    const routeMap = {
+      dashboard: "/admindashboard",
+      users: "/users",
+      schools: "/schools",
+      roles: "/roles",
+      permissions: "/permissions",
+      zones: "/zones",
+      lgas: "/lgas",
+      home: "/",
+      "academic-years": "/academic-years",
+      terms: "/terms",
+      levels: "/levels",
+      sublevels: "/sublevels",
+      subjects: "/subjects",
+    };
+    const path = routeMap[key];
+    if (path) navigate(path);
+  };
+
+  return (
+    <PrivateRoute>
+      <AdminPageLayout activeKey="sublevels" onNavigate={handleNavigate} permissions={null}>
+        <Sublevels />
+      </AdminPageLayout>
+    </PrivateRoute>
+  );
+}
+
+function SubjectsRoute() {
+  const navigate = useNavigate();
+  const handleNavigate = (key) => {
+    const routeMap = {
+      dashboard: "/admindashboard",
+      users: "/users",
+      schools: "/schools",
+      roles: "/roles",
+      permissions: "/permissions",
+      zones: "/zones",
+      lgas: "/lgas",
+      home: "/",
+      "academic-years": "/academic-years",
+      terms: "/terms",
+      levels: "/levels",
+      sublevels: "/sublevels",
+      subjects: "/subjects",
+    };
+    const path = routeMap[key];
+    if (path) navigate(path);
+  };
+
+  return (
+    <PrivateRoute>
+      <AdminPageLayout activeKey="subjects" onNavigate={handleNavigate} permissions={null}>
+        <Subjects />
       </AdminPageLayout>
     </PrivateRoute>
   );
@@ -123,11 +390,9 @@ function AppContent() {
 
   return (
     <>
-      {/* Header/Footer hidden on full-screen admin pages so AdminPageLayout gets 100vh */}
       {!isAdminRoute && <Header />}
 
       <Routes>
-        {/* Public Home Page Layout (Your Original Components) */}
         <Route path="/" element={
           <>
             <Hero />
@@ -139,13 +404,10 @@ function AppContent() {
             <QuickLinks />
           </>
         } />
-
-        {/* Public Auth Pages */}
-        <Route path="/register" element={<Register />} />
+<Route path="/register" element={<Register />} />
         <Route path="/login" element={<Login />} />
         <Route path="/About" element={<About />} />
 
-        {/* Protected Dashboard/Admin Routes */}
         <Route path="/users" element={<UsersRoute />} />
         <Route path="/schools" element={
           <PrivateRoute>
@@ -153,6 +415,14 @@ function AppContent() {
           </PrivateRoute>
         } />
         <Route path="/roles" element={<RolesRoute />} />
+        <Route path="/permissions" element={<PermissionsRoute />} />
+        <Route path="/zones" element={<ZonesRoute />} />
+        <Route path="/lgas" element={<LgasRoute />} />
+        <Route path="/academic-years" element={<AcademicYearsRoute />} />
+        <Route path="/terms" element={<TermsRoute />} />
+        <Route path="/levels" element={<LevelsRoute />} />
+        <Route path="/sublevels" element={<SublevelsRoute />} />
+        <Route path="/subjects" element={<SubjectsRoute />} />
         <Route path="/admindashboard" element={<AdminDashboardRoute />} />
       </Routes>
 
@@ -161,7 +431,6 @@ function AppContent() {
   );
 }
 
-// 2. Put AuthProvider at the absolute root so AppContent can safely use routing & auth context
 export default function App() {
   return (
     <AuthProvider>

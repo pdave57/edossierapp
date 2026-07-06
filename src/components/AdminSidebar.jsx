@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import {
   Home,
   LayoutDashboard,
@@ -12,11 +12,16 @@ import {
   BookOpen,
   Users as UsersIcon,
   ShieldCheck,
+  Shield,
   UserCog,
   GraduationCap,
   FileSpreadsheet,
   ChevronDown,
+  LogOut,
+  ToiletIcon,
 } from "lucide-react";
+import { useNavigate } from "react-router-dom";
+import { useAuth } from "../context/AuthContext";
 //import logoMoe from "./assets/logomoe.jpg";
 
 /**
@@ -66,7 +71,8 @@ const NAV_GROUPS = [
     items: [
       { key: "users", label: "Users", icon: UsersIcon },
       { key: "roles", label: "Roles", icon: ShieldCheck },
-      { key: "role-permissions", label: "Role permissions", icon: UserCog },
+      { key: "permissions", label: "Permissions", icon: Shield },
+      //{ key: "role-permissions", label: "Role permissions", icon: UserCog },
     ],
   },
   {
@@ -88,27 +94,16 @@ const NAV_GROUPS = [
   {
     id: "schools",
     label: "Schools",
+    accordion: true,
+    defaultOpen: false,
     items: [
       { key: "schools", label: "All schools", icon: School },
+      { key: "facilities", label: "Add Facilities", icon: ToiletIcon },
       { key: "academic-years", label: "Academic years", icon: CalendarRange },
       { key: "terms", label: "Terms", icon: CalendarDays },
       { key: "levels", label: "Levels", icon: Layers },
       { key: "sublevels", label: "Sublevels", icon: Layers3 },
       { key: "subjects", label: "Subjects", icon: BookOpen },
-    ],
-  },
-  {
-    id: "exams",
-    label: "Exams",
-    items: [
-      { key: "exams", label: "Exams", icon: FileSpreadsheet },
-    ],
-  },
-  {
-    id: "personnel",
-    label: "Personnel",
-    items: [
-      { key: "personnel", label: "Personnel", icon: UsersIcon },
     ],
   },
   {
@@ -118,6 +113,21 @@ const NAV_GROUPS = [
       { key: "students", label: "Students", icon: GraduationCap },
     ],
   },
+  {
+    id: "exams",
+    label: "Exams",    
+    items: [
+      { key: "exams", label: "Exams", icon: FileSpreadsheet },
+    ],
+  },  
+  {
+    id: "personnel",
+    label: "Personnel",
+    items: [
+      { key: "personnel", label: "Personnel", icon: UsersIcon },
+    ],
+  },
+ 
 ];
 
 /**
@@ -206,6 +216,8 @@ export default function AdminSidebar({
   onNavigate: onNavigateProp,
   permissions = null, // array or Set of allowed item keys; null = show all
 }) {
+  const navigate = useNavigate();
+  const { user, logout } = useAuth();
   const [activeKeyState, setActiveKeyState] = useState("dashboard");
   const activeKey = activeKeyProp ?? activeKeyState;
   const onNavigate = onNavigateProp ?? setActiveKeyState;
@@ -409,6 +421,76 @@ export default function AdminSidebar({
           background: rgba(250, 247, 240, 0.15);
           border-radius: 3px;
         }
+
+        .admin-sidebar__user {
+          margin-top: auto;
+          padding: 16px 12px;
+          border-top: 1px solid rgba(250, 247, 240, 0.12);
+        }
+        .admin-sidebar__user-info {
+          display: flex;
+          align-items: center;
+          gap: 10px;
+          margin-bottom: 10px;
+        }
+        .admin-sidebar__user-avatar {
+          width: 34px;
+          height: 34px;
+          border-radius: 50%;
+          background: rgba(130, 196, 108, 0.2);
+          color: ${COLORS.primary};
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          font-weight: 700;
+          font-size: 14px;
+          flex-shrink: 0;
+        }
+        .admin-sidebar__user-details {
+          display: flex;
+          flex-direction: column;
+          min-width: 0;
+        }
+        .admin-sidebar__user-name {
+          font-size: 13px;
+          font-weight: 600;
+          color: ${COLORS.paper};
+          overflow: hidden;
+          text-overflow: ellipsis;
+          white-space: nowrap;
+        }
+        .admin-sidebar__user-email {
+          font-size: 11px;
+          color: rgba(250, 247, 240, 0.55);
+          overflow: hidden;
+          text-overflow: ellipsis;
+          white-space: nowrap;
+        }
+        .admin-sidebar__logout-btn {
+          width: 100%;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          gap: 8px;
+          padding: 8px 10px;
+          border: 1px solid rgba(250, 247, 240, 0.15);
+          border-radius: 6px;
+          background: transparent;
+          color: rgba(250, 247, 240, 0.85);
+          font-size: 13px;
+          font-weight: 500;
+          cursor: pointer;
+          transition: background 0.12s ease, color 0.12s ease;
+        }
+        .admin-sidebar__logout-btn:hover {
+          background: rgba(179, 58, 58, 0.2);
+          color: ${COLORS.paper};
+          border-color: rgba(179, 58, 58, 0.45);
+        }
+        .admin-sidebar__logout-btn:focus-visible {
+          outline: 2px solid ${COLORS.primary};
+          outline-offset: 1px;
+        }
       `}</style>
 
       <div className="admin-sidebar__brand">
@@ -420,6 +502,34 @@ export default function AdminSidebar({
           <span className="admin-sidebar__brand-sub">Taraba State · HQ</span>
         </div>
       </div>
+      {user && (
+        <div className="admin-sidebar__user">
+          <div className="admin-sidebar__user-info">
+            <span className="admin-sidebar__user-avatar">
+              {(user.first_name?.[0] || user.email?.[0] || "?").toUpperCase()}
+            </span>
+            <div className="admin-sidebar__user-details">
+              <span className="admin-sidebar__user-name">
+                {user.first_name && user.last_name
+                  ? `${user.first_name} ${user.last_name}`
+                  : user.email || "Admin"}
+              </span>
+              <span className="admin-sidebar__user-email">{user.email || ""}</span>
+            </div>
+          </div>
+          <button
+            type="button"
+            className="admin-sidebar__logout-btn"
+            onClick={async () => {
+              await logout();
+              navigate("/");
+            }}
+          >
+            <LogOut size={16} strokeWidth={2} />
+            Logout
+          </button>
+        </div>
+      )}
 
       {visibleGroups.map((group) => (
         <NavGroup
@@ -431,6 +541,8 @@ export default function AdminSidebar({
           onToggle={() => toggleAccordion(group.id)}
         />
       ))}
+
+      
     </nav>
   );
 }
