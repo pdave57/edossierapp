@@ -1,10 +1,15 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { getSublevels, createSublevel, getSublevel, updateSublevel, deleteSublevel } from '../api/client';
+import { getSublevels, createSublevel, getSublevel, updateSublevel, deleteSublevel, getSchoolSubLevels, getLevelSubLevels, getErrorMessage } from '../api/client';
 import AlertBox from '../components/common/AlertBox';
 
 const Sublevels = () => {
   const { token } = useAuth();
+  const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const schoolId = searchParams.get('school_id');
+  const levelId = searchParams.get('level_id');
   const [sublevels, setSublevels] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -14,7 +19,7 @@ const Sublevels = () => {
   const [openDropdownId, setOpenDropdownId] = useState(null);
   const dropdownRef = useRef(null);
 
-  const [formData, setFormData] = useState({ name: '', code: '', description: '' });
+  const [formData, setFormData] = useState({ name: '', code: '', capacity: '' });
 
   const fetchSublevels = useCallback(async () => {
     if (!token) {
@@ -25,7 +30,14 @@ const Sublevels = () => {
     try {
       setLoading(true);
       setError('');
-      const res = await getSublevels();
+      let res;
+      if (schoolId) {
+        res = await getSchoolSubLevels(schoolId);
+      } else if (levelId) {
+        res = await getLevelSubLevels(levelId);
+      } else {
+        res = await getSublevels();
+      }
       const list = Array.isArray(res.data) ? res.data : (res.data?.sublevels ?? res.data?.data ?? []);
       setSublevels(list);
     } catch (err) {
@@ -36,7 +48,7 @@ const Sublevels = () => {
     } finally {
       setLoading(false);
     }
-  }, [token]);
+  }, [token, schoolId, levelId]);
 
   useEffect(() => {
     fetchSublevels();
@@ -56,7 +68,7 @@ const Sublevels = () => {
     setModalMode(mode);
     setSelectedSublevel(sublevel);
     if (mode === 'create' || mode === 'edit') {
-      setFormData({ name: sublevel?.name || '', code: sublevel?.code || '', description: sublevel?.description || '' });
+      setFormData({ name: sublevel?.name || '', code: sublevel?.code || '', capacity: sublevel?.capacity || '' });
     }
     setShowModal(true);
     setOpenDropdownId(null);
@@ -65,21 +77,18 @@ const Sublevels = () => {
   const handleCreateSublevel = async (e) => {
     e.preventDefault();
     try {
-      const payload = { name: formData.name, code: formData.code, description: formData.description };
-      await createSublevel(payload);
+      const payload = {
+        name: formData.name,
+        code: formData.code,
+        ...(formData.capacity !== '' ? { capacity: Number(formData.capacity) } : {}),
+      };
+      await createSublevel(schoolId, levelId, payload);
       await fetchSublevels();
       setShowModal(false);
     } catch (err) {
       console.error('Create sublevel error:', err);
       const status = err?.response?.status;
-      const backendMsg = typeof err?.response?.data?.message === 'string'
-        ? err?.response?.data?.message
-        : typeof err?.response?.data?.error === 'string'
-        ? err?.response?.data?.error
-        : typeof err?.message === 'string'
-        ? err?.message
-        : JSON.stringify(err?.response?.data || err?.message || 'Unknown error');
-      setError(`Failed to create sublevel (${status ?? 'network error'}): ${backendMsg}`);
+      setError(`Failed to create sublevel (${status ?? 'network error'}): ${getErrorMessage(err, 'Unknown error')}`);
     }
   };
 
@@ -87,21 +96,18 @@ const Sublevels = () => {
     e.preventDefault();
     if (!selectedSublevel) return;
     try {
-      const payload = { name: formData.name, code: formData.code, description: formData.description };
+      const payload = {
+        name: formData.name,
+        code: formData.code,
+        ...(formData.capacity !== '' ? { capacity: Number(formData.capacity) } : {}),
+      };
       await updateSublevel(selectedSublevel.id, payload);
       await fetchSublevels();
       setShowModal(false);
     } catch (err) {
       console.error('Update sublevel error:', err);
       const status = err?.response?.status;
-      const backendMsg = typeof err?.response?.data?.message === 'string'
-        ? err?.response?.data?.message
-        : typeof err?.response?.data?.error === 'string'
-        ? err?.response?.data?.error
-        : typeof err?.message === 'string'
-        ? err?.message
-        : JSON.stringify(err?.response?.data || err?.message || 'Unknown error');
-      setError(`Failed to update sublevel (${status ?? 'network error'}): ${backendMsg}`);
+      setError(`Failed to update sublevel (${status ?? 'network error'}): ${getErrorMessage(err, 'Unknown error')}`);
     }
   };
 
@@ -119,14 +125,7 @@ const Sublevels = () => {
     } catch (err) {
       console.error('Delete sublevel error:', err);
       const status = err?.response?.status;
-      const backendMsg = typeof err?.response?.data?.message === 'string'
-        ? err?.response?.data?.message
-        : typeof err?.response?.data?.error === 'string'
-        ? err?.response?.data?.error
-        : typeof err?.message === 'string'
-        ? err?.message
-        : JSON.stringify(err?.response?.data || err?.message || 'Unknown error');
-      setError(`Failed to delete sublevel (${status ?? 'network error'}): ${backendMsg}`);
+      setError(`Failed to delete sublevel (${status ?? 'network error'}): ${getErrorMessage(err, 'Unknown error')}`);
     }
   };
 
@@ -136,21 +135,14 @@ const Sublevels = () => {
       const res = await getSublevel(selectedSublevel.id);
       const sublevelData = res.data?.data || res.data;
       setSelectedSublevel(sublevelData);
-      setFormData({ name: sublevelData.name || '', code: sublevelData.code || '', description: sublevelData.description || '' });
+      setFormData({ name: sublevelData.name || '', code: sublevelData.code || '', capacity: sublevelData.capacity || '' });
       setModalMode('view');
       setShowModal(true);
       setOpenDropdownId(null);
     } catch (err) {
       console.error('View sublevel error:', err);
       const status = err?.response?.status;
-      const backendMsg = typeof err?.response?.data?.message === 'string'
-        ? err?.response?.data?.message
-        : typeof err?.response?.data?.error === 'string'
-        ? err?.response?.data?.error
-        : typeof err?.message === 'string'
-        ? err?.message
-        : JSON.stringify(err?.response?.data || err?.message || 'Unknown error');
-      setError(`Failed to fetch sublevel details (${status ?? 'network error'}): ${backendMsg}`);
+      setError(`Failed to fetch sublevel details (${status ?? 'network error'}): ${getErrorMessage(err, 'Unknown error')}`);
     }
   };
 
@@ -165,22 +157,43 @@ const Sublevels = () => {
   return (
     <div style={{ padding: '40px', maxWidth: '1400px', margin: '0 auto' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '30px' }}>
-        <h1>Sublevel Management</h1>
-        <button
-          onClick={() => openModal('create')}
-          style={{
-            padding: '10px 24px',
-            background: '#3e7430',
-            color: 'white',
-            border: 'none',
-            borderRadius: '50px',
-            cursor: 'pointer',
-            fontWeight: '600',
-            fontSize: '0.95rem'
-          }}
-        >
-          + Add New
-        </button>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
+          <h1>{levelId ? 'Sublevels' : 'Sublevel Management'}</h1>
+        </div>
+        <div style={{ display: 'flex', gap: '10px' }}>
+          {schoolId && levelId && (
+            <button
+              onClick={() => navigate(`/levels?school_id=${schoolId}`)}
+              style={{
+                padding: '10px 24px',
+                background: 'var(--bg-light)',
+                color: 'var(--text)',
+                border: '1px solid var(--border)',
+                borderRadius: '50px',
+                cursor: 'pointer',
+                fontWeight: '600',
+                fontSize: '0.95rem'
+              }}
+            >
+              ← Back to Levels
+            </button>
+          )}
+          <button
+            onClick={() => openModal('create')}
+            style={{
+              padding: '10px 24px',
+              background: '#3e7430',
+              color: 'white',
+              border: 'none',
+              borderRadius: '50px',
+              cursor: 'pointer',
+              fontWeight: '600',
+              fontSize: '0.95rem'
+            }}
+          >
+            + Add New
+          </button>
+        </div>
       </div>
 
       <AlertBox type="error" message={error} />
@@ -191,7 +204,7 @@ const Sublevels = () => {
             <tr style={{ background: 'var(--bg-light)', borderBottom: '2px solid var(--border)' }}>
               <th style={{ padding: '15px', textAlign: 'left' }}>Name</th>
               <th style={{ padding: '15px', textAlign: 'left' }}>Code</th>
-              <th style={{ padding: '15px', textAlign: 'left' }}>Description</th>
+              <th style={{ padding: '15px', textAlign: 'left' }}>Capacity</th>
               <th style={{ padding: '15px', textAlign: 'left', width: '120px' }}>Actions</th>
             </tr>
           </thead>
@@ -199,7 +212,7 @@ const Sublevels = () => {
             {sublevels.length === 0 ? (
               <tr>
                 <td colSpan="3" style={{ padding: '40px', textAlign: 'center', color: 'var(--gray)' }}>
-                  No sublevels found. Click "+ Add New" to create one.
+                  {schoolId && levelId ? 'No sublevels found for this level.' : 'No sublevels found.'}
                 </td>
               </tr>
             ) : (
@@ -207,7 +220,7 @@ const Sublevels = () => {
                 <tr key={sublevel.id} style={{ borderBottom: '1px solid var(--border)' }}>
                   <td style={{ padding: '15px' }}>{sublevel.name}</td>
                   <td style={{ padding: '15px' }}>{sublevel.code || '—'}</td>
-                  <td style={{ padding: '15px' }}>{sublevel.description || '—'}</td>
+                  <td style={{ padding: '15px' }}>{sublevel.capacity || '—'}</td>
                   <td style={{ padding: '15px' }}>
                     <div style={{ position: 'relative', display: 'inline-block' }}>
                       <button
@@ -301,12 +314,12 @@ const Sublevels = () => {
                 />
               </div>
               <div style={{ marginBottom: '20px' }}>
-                <label style={{ display: 'block', marginBottom: '5px', fontWeight: '500' }}>Description</label>
-                <textarea
-                  value={formData.description}
-                  onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                <label style={{ display: 'block', marginBottom: '5px', fontWeight: '500' }}>Capacity</label>
+                <input
+                  type="number"
+                  value={formData.capacity}
+                  onChange={(e) => setFormData({ ...formData, capacity: e.target.value })}
                   disabled={modalMode === 'view'}
-                  rows="3"
                   style={{
                     width: '100%', padding: '10px', border: '1px solid var(--border)',
                     borderRadius: '8px', background: modalMode === 'view' ? 'var(--bg-light)' : 'white',

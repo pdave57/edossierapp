@@ -1,11 +1,19 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { useAuth } from '../context/AuthContext';
-import { getTerms, createTerm, getTerm, updateTerm, deleteTerm } from '../api/client';
+import { useSearchParams } from 'react-router-dom';
+import { getTerms, createTerm, getTerm, updateTerm, deleteTerm, getSessions, getErrorMessage, createSessionTerm, getSessionTerms } from '../api/client';
 import AlertBox from '../components/common/AlertBox';
 
+// Backend time.Time fields expect RFC3339; <input type="date"> gives YYYY-MM-DD.
+const toISODate = (dateStr) => (dateStr ? new Date(`${dateStr}T00:00:00Z`).toISOString() : '');
+
+const emptyForm = { session_id: '', term_number: 1, name: '', start_date: '', end_date: '' };
+
 const Terms = () => {
-  const { token } = useAuth();
+  const [searchParams] = useSearchParams();
+  const sessionParam = searchParams.get('session_id');
   const [terms, setTerms] = useState([]);
+  const [sessions, setSessions] = useState([]);
+  const [sessionMap, setSessionMap] = useState({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [modalMode, setModalMode] = useState('view');
@@ -14,33 +22,45 @@ const Terms = () => {
   const [openDropdownId, setOpenDropdownId] = useState(null);
   const dropdownRef = useRef(null);
 
-  const [formData, setFormData] = useState({ name: '', code: '', description: '' });
+  const [formData, setFormData] = useState(emptyForm);
 
-  const fetchTerms = useCallback(async () => {
-    if (!token) {
-      setError('You must be logged in to view terms.');
-      setLoading(false);
-      return;
-    }
+  const fetchSessions = useCallback(async () => {
     try {
-      setLoading(true);
+      const res = await getSessions(1, 200);
+      const list = Array.isArray(res.data) ? res.data : (res.data?.data ?? []);
+      setSessions(list);
+      const map = {};
+      list.forEach((s) => { map[s.id] = s.name; });
+      setSessionMap(map);
+    } catch (err) {
+      console.error(err);
+    }
+  }, []);
+
+  const fetchTerms = useCallback(async (sessionId) => {
+    try {
       setError('');
-      const res = await getTerms();
-      const list = Array.isArray(res.data) ? res.data : (res.data?.terms ?? res.data?.data ?? []);
+      let res;
+      if (sessionId) {
+        res = await getSessionTerms(sessionId);
+      } else {
+        res = await getTerms();
+      }
+      const list = Array.isArray(res.data) ? res.data : (res.data?.data ?? []);
       setTerms(list);
     } catch (err) {
       console.error(err);
       const status = err?.response?.status;
-      const msg = err?.response?.data?.message || err?.message || 'Unknown error';
-      setError(`Failed to fetch terms (${status ?? 'network error'}): ${msg}`);
+      setError(`Failed to fetch terms (${status ?? 'network error'}): ${getErrorMessage(err)}`);
     } finally {
       setLoading(false);
     }
-  }, [token]);
+  }, []);
 
   useEffect(() => {
-    fetchTerms();
-  }, [fetchTerms]);
+    fetchSessions();
+    fetchTerms(sessionParam);
+  }, [fetchSessions, fetchTerms, sessionParam]);
 
   useEffect(() => {
     const handleClickOutside = (event) => {
@@ -56,7 +76,13 @@ const Terms = () => {
     setModalMode(mode);
     setSelectedTerm(term);
     if (mode === 'create' || mode === 'edit') {
-      setFormData({ name: term?.name || '', code: term?.code || '', description: term?.description || '' });
+      setFormData({
+        session_id: term?.session_id || sessionParam || '',
+        term_number: term?.term_number ?? 1,
+        name: term?.name || '',
+        start_date: term?.start_date ? term.start_date.split('T')[0] : '',
+        end_date: term?.end_date ? term.end_date.split('T')[0] : '',
+      });
     }
     setShowModal(true);
     setOpenDropdownId(null);
@@ -64,22 +90,25 @@ const Terms = () => {
 
   const handleCreateTerm = async (e) => {
     e.preventDefault();
+    if (!formData.session_id) {
+      setError('Please select a session for the term.');
+      return;
+    }
     try {
-      const payload = { name: formData.name, code: formData.code, description: formData.description };
-      await createTerm(payload);
-      await fetchTerms();
+      const payload = {
+        term_number: Number(formData.term_number),
+        name: formData.name,
+        start_date: toISODate(formData.start_date),
+        end_date: toISODate(formData.end_date),
+      };
+      await createSessionTerm(formData.session_id, payload);
+      await fetchTerms(sessionParam);
       setShowModal(false);
     } catch (err) {
       console.error('Create term error:', err);
+      console.error('Response data:', err?.response?.data);
       const status = err?.response?.status;
-      const backendMsg = typeof err?.response?.data?.message === 'string'
-        ? err?.response?.data?.message
-        : typeof err?.response?.data?.error === 'string'
-        ? err?.response?.data?.error
-        : typeof err?.message === 'string'
-        ? err?.message
-        : JSON.stringify(err?.response?.data || err?.message || 'Unknown error');
-      setError(`Failed to create term (${status ?? 'network error'}): ${backendMsg}`);
+      setError(`Failed to create term (${status ?? 'network error'}): ${getErrorMessage(err)}`);
     }
   };
 
@@ -87,21 +116,18 @@ const Terms = () => {
     e.preventDefault();
     if (!selectedTerm) return;
     try {
-      const payload = { name: formData.name, code: formData.code, description: formData.description };
+      const payload = {
+        name: formData.name,
+        start_date: toISODate(formData.start_date),
+        end_date: toISODate(formData.end_date),
+      };
       await updateTerm(selectedTerm.id, payload);
-      await fetchTerms();
+      await fetchTerms(sessionParam);
       setShowModal(false);
     } catch (err) {
       console.error('Update term error:', err);
       const status = err?.response?.status;
-      const backendMsg = typeof err?.response?.data?.message === 'string'
-        ? err?.response?.data?.message
-        : typeof err?.response?.data?.error === 'string'
-        ? err?.response?.data?.error
-        : typeof err?.message === 'string'
-        ? err?.message
-        : JSON.stringify(err?.response?.data || err?.message || 'Unknown error');
-      setError(`Failed to update term (${status ?? 'network error'}): ${backendMsg}`);
+      setError(`Failed to update term (${status ?? 'network error'}): ${getErrorMessage(err)}`);
     }
   };
 
@@ -113,20 +139,13 @@ const Terms = () => {
     }
     try {
       await deleteTerm(selectedTerm.id);
-      await fetchTerms();
+      await fetchTerms(sessionParam);
       setShowModal(false);
       setOpenDropdownId(null);
     } catch (err) {
       console.error('Delete term error:', err);
       const status = err?.response?.status;
-      const backendMsg = typeof err?.response?.data?.message === 'string'
-        ? err?.response?.data?.message
-        : typeof err?.response?.data?.error === 'string'
-        ? err?.response?.data?.error
-        : typeof err?.message === 'string'
-        ? err?.message
-        : JSON.stringify(err?.response?.data || err?.message || 'Unknown error');
-      setError(`Failed to delete term (${status ?? 'network error'}): ${backendMsg}`);
+      setError(`Failed to delete term (${status ?? 'network error'}): ${getErrorMessage(err)}`);
     }
   };
 
@@ -136,21 +155,20 @@ const Terms = () => {
       const res = await getTerm(selectedTerm.id);
       const termData = res.data?.data || res.data;
       setSelectedTerm(termData);
-      setFormData({ name: termData.name || '', code: termData.code || '', description: termData.description || '' });
+      setFormData({
+        session_id: termData.session_id || '',
+        term_number: termData.term_number ?? 1,
+        name: termData.name || '',
+        start_date: termData.start_date ? termData.start_date.split('T')[0] : '',
+        end_date: termData.end_date ? termData.end_date.split('T')[0] : '',
+      });
       setModalMode('view');
       setShowModal(true);
       setOpenDropdownId(null);
     } catch (err) {
       console.error('View term error:', err);
       const status = err?.response?.status;
-      const backendMsg = typeof err?.response?.data?.message === 'string'
-        ? err?.response?.data?.message
-        : typeof err?.response?.data?.error === 'string'
-        ? err?.response?.data?.error
-        : typeof err?.message === 'string'
-        ? err?.message
-        : JSON.stringify(err?.response?.data || err?.message || 'Unknown error');
-      setError(`Failed to fetch term details (${status ?? 'network error'}): ${backendMsg}`);
+      setError(`Failed to fetch term details (${status ?? 'network error'}): ${getErrorMessage(err)}`);
     }
   };
 
@@ -189,30 +207,43 @@ const Terms = () => {
         <table style={{ width: '100%', borderCollapse: 'collapse' }}>
           <thead>
             <tr style={{ background: 'var(--bg-light)', borderBottom: '2px solid var(--border)' }}>
+              <th style={{ padding: '15px', textAlign: 'left' }}>Session</th>
+              <th style={{ padding: '15px', textAlign: 'left' }}>#</th>
               <th style={{ padding: '15px', textAlign: 'left' }}>Name</th>
-              <th style={{ padding: '15px', textAlign: 'left' }}>Code</th>
-              <th style={{ padding: '15px', textAlign: 'left' }}>Description</th>
+              <th style={{ padding: '15px', textAlign: 'left' }}>Start Date</th>
+              <th style={{ padding: '15px', textAlign: 'left' }}>End Date</th>
+              <th style={{ padding: '15px', textAlign: 'center' }}>Status</th>
               <th style={{ padding: '15px', textAlign: 'left', width: '120px' }}>Actions</th>
             </tr>
           </thead>
           <tbody>
-            {terms.length === 0 ? (
-              <tr>
-                <td colSpan="3" style={{ padding: '40px', textAlign: 'center', color: 'var(--gray)' }}>
-                  No terms found. Click "+ Add New" to create one.
-                </td>
-              </tr>
-            ) : (
-              terms.map((term) => (
+              {terms.length === 0 ? (
+                <tr>
+                  <td colSpan="7" style={{ padding: '40px', textAlign: 'center', color: 'var(--gray)' }}>
+                    No terms found. Click "+ Add New" to create one.
+                  </td>
+                </tr>
+              ) : (
+                terms.map((term) => (
                 <tr key={term.id} style={{ borderBottom: '1px solid var(--border)' }}>
+                  <td style={{ padding: '15px' }}>{sessionMap[term.session_id] || term.session_id || '—'}</td>
+                  <td style={{ padding: '15px' }}>{term.term_number}</td>
                   <td style={{ padding: '15px' }}>{term.name}</td>
-                  <td style={{ padding: '15px' }}>{term.code || '—'}</td>
-                  <td style={{ padding: '15px' }}>{term.description || '—'}</td>
+                  <td style={{ padding: '15px' }}>{term.start_date ? new Date(term.start_date).toLocaleDateString() : '—'}</td>
+                  <td style={{ padding: '15px' }}>{term.end_date ? new Date(term.end_date).toLocaleDateString() : '—'}</td>
+                  <td style={{ padding: '15px', textAlign: 'center' }}>
+                    {term.is_active ? (
+                      <span style={{ background: '#d4edda', color: '#155724', padding: '4px 8px', borderRadius: '12px', fontSize: '0.85rem' }}>Active</span>
+                    ) : (
+                      <span style={{ background: '#e2e3e5', color: '#383d41', padding: '4px 8px', borderRadius: '12px', fontSize: '0.85rem' }}>Inactive</span>
+                    )}
+                  </td>
                   <td style={{ padding: '15px' }}>
                     <div style={{ position: 'relative', display: 'inline-block' }}>
                       <button
-                        onClick={() => setOpenDropdownId(openDropdownId === term.id ? null : term.id)}
+                        onClick={(e) => { e.stopPropagation(); setOpenDropdownId(openDropdownId === term.id ? null : term.id); }}
                         style={{ padding: '6px 12px', background: 'var(--bg-light)', border: '1px solid var(--border)', borderRadius: '4px', cursor: 'pointer' }}
+                        ref={openDropdownId === term.id ? dropdownRef : null}
                       >
                         •••
                       </button>
@@ -273,6 +304,23 @@ const Terms = () => {
 
             <form onSubmit={modalMode === 'create' ? handleCreateTerm : handleUpdateTerm}>
               <div style={{ marginBottom: '15px' }}>
+                <label style={{ display: 'block', marginBottom: '5px', fontWeight: '500' }}>Term Number</label>
+                <select
+                  value={formData.term_number}
+                  onChange={(e) => setFormData({ ...formData, term_number: Number(e.target.value) })}
+                  disabled={modalMode === 'view' || modalMode === 'edit'}
+                  required
+                  style={{
+                    width: '100%', padding: '10px', border: '1px solid var(--border)',
+                    borderRadius: '8px', background: modalMode === 'view' ? 'var(--bg-light)' : 'white'
+                  }}
+                >
+                  <option value={1}>1</option>
+                  <option value={2}>2</option>
+                  <option value={3}>3</option>
+                </select>
+              </div>
+              <div style={{ marginBottom: '15px' }}>
                 <label style={{ display: 'block', marginBottom: '5px', fontWeight: '500' }}>Name</label>
                 <input
                   type="text"
@@ -287,11 +335,11 @@ const Terms = () => {
                 />
               </div>
               <div style={{ marginBottom: '15px' }}>
-                <label style={{ display: 'block', marginBottom: '5px', fontWeight: '500' }}>Code</label>
+                <label style={{ display: 'block', marginBottom: '5px', fontWeight: '500' }}>Start Date</label>
                 <input
-                  type="text"
-                  value={formData.code}
-                  onChange={(e) => setFormData({ ...formData, code: e.target.value })}
+                  type="date"
+                  value={formData.start_date}
+                  onChange={(e) => setFormData({ ...formData, start_date: e.target.value })}
                   disabled={modalMode === 'view'}
                   style={{
                     width: '100%', padding: '10px', border: '1px solid var(--border)',
@@ -301,17 +349,17 @@ const Terms = () => {
                 />
               </div>
               <div style={{ marginBottom: '20px' }}>
-                <label style={{ display: 'block', marginBottom: '5px', fontWeight: '500' }}>Description</label>
-                <textarea
-                  value={formData.description}
-                  onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                <label style={{ display: 'block', marginBottom: '5px', fontWeight: '500' }}>End Date</label>
+                <input
+                  type="date"
+                  value={formData.end_date}
+                  onChange={(e) => setFormData({ ...formData, end_date: e.target.value })}
                   disabled={modalMode === 'view'}
-                  rows="3"
                   style={{
                     width: '100%', padding: '10px', border: '1px solid var(--border)',
-                    borderRadius: '8px', background: modalMode === 'view' ? 'var(--bg-light)' : 'white',
-                    resize: 'vertical', fontFamily: 'inherit'
+                    borderRadius: '8px', background: modalMode === 'view' ? 'var(--bg-light)' : 'white'
                   }}
+                  required
                 />
               </div>
 

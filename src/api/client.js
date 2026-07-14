@@ -161,12 +161,15 @@ export const deleteRole = (id) => api.delete(`/api/v1/roles/${id}`);
 
 
 // --- Sessions ---
-export const getSessions = (page = 1, limit = 10) => api.get('/api/v1/sessions', { params: { page, limit } });
+export const getSessions = (page = 1, limit = 10, schoolId = null) =>
+  api.get('/api/v1/sessions', { params: schoolId ? { page, limit, school_id: schoolId } : { page, limit } });
 export const getActiveSession = () => api.get('/api/v1/sessions/active');
 export const getSession = (id) => api.get(`/api/v1/sessions/${id}`);
-export const createSession = (data) => api.post('/api/v1/sessions', data);
+export const createSession = (data, schoolId = null) =>
+  api.post('/api/v1/sessions', data, schoolId ? { params: { school_id: schoolId } } : undefined);
 export const updateSession = (id, data) => api.put(`/api/v1/sessions/${id}`, data);
-export const activateSession = (id) => api.post(`/api/v1/sessions/${id}/activate`, {});
+export const activateSession = (id, schoolId = null) =>
+  api.post(`/api/v1/sessions/${id}/activate`, {}, schoolId ? { params: { school_id: schoolId } } : undefined);
 export const deleteSession = (id) => api.delete(`/api/v1/sessions/${id}`);
 
 // --- Terms ---
@@ -184,8 +187,9 @@ export const activateSessionTerm = (sessionId, id) => api.post(`/api/v1/sessions
 export const deleteSessionTerm = (sessionId, id) => api.delete(`/api/v1/sessions/${sessionId}/terms/${id}`);
 
 // --- Levels ---
-export const getLevels = (page = 1, limit = 10) => api.get('/api/v1/levels', { params: { page, limit } });
-export const createLevel = (data) => api.post('/api/v1/levels', data);
+export const getLevels = (page = 1, limit = 10, schoolId) => api.get('/api/v1/levels', { params: { page, limit, ...(schoolId ? { school_id: schoolId } : {}) } });
+export const createLevel = (data, schoolId = null) =>
+  api.post('/api/v1/levels', data, schoolId ? { params: { school_id: schoolId } } : undefined);
 export const getLevel = (id) => api.get(`/api/v1/levels/${id}`);
 export const updateLevel = (id, data) => api.put(`/api/v1/levels/${id}`, data);
 export const deleteLevel = (id) => api.delete(`/api/v1/levels/${id}`);
@@ -193,10 +197,16 @@ export const getLevelSubLevels = (levelId) => api.get(`/api/v1/levels/${levelId}
 
 // --- Sublevels ---
 export const getSublevels = () => api.get('/api/v1/sublevels');
-export const createSublevel = (data) => api.post('/api/v1/sublevels', data);
-export const getSublevel = (id) => api.get(`/api/v1/sublevels/${id}`);
-export const updateSublevel = (id, data) => api.put(`/api/v1/sublevels/${id}`, data);
-export const deleteSublevel = (id) => api.delete(`/api/v1/sublevels/${id}`);
+export const createSublevel = (schoolId, levelId, data) => {
+  const params = new URLSearchParams();
+  if (schoolId) params.set('school_id', schoolId);
+  if (levelId) params.set('level_id', levelId);
+  const qs = params.toString();
+  return api.post(`/api/v1/sub-levels${qs ? `?${qs}` : ''}`, data);
+};
+export const getSublevel = (id) => api.get(`/api/v1/sub-levels/${id}`);
+export const updateSublevel = (id, data) => api.put(`/api/v1/sub-levels/${id}`, data);
+export const deleteSublevel = (id) => api.delete(`/api/v1/sub-levels/${id}`);
 export const getSchoolSubLevels = (schoolId) => api.get(`/api/v1/schools/${schoolId}/sub-levels`);
 export const createSchoolSubLevel = (schoolId, data) => api.post(`/api/v1/schools/${schoolId}/sub-levels`, data);
 
@@ -241,7 +251,11 @@ export const getSchool = (id) => api.get(`/api/v1/schools/${id}`);
 export const updateSchool = (id, data) => api.put(`/api/v1/schools/${id}`, data);
 export const deleteSchool = (id) => api.delete(`/api/v1/schools/${id}`);
 
-
+// --- School Facilities ---
+export const listFacilities = (schoolId) => api.get(`/api/v1/schools/${schoolId}/facilities`);
+export const createFacility = (schoolId, data) => api.post(`/api/v1/schools/${schoolId}/facilities`, data);
+export const updateFacility = (schoolId, facilityId, data) => api.put(`/api/v1/schools/${schoolId}/facilities/${facilityId}`, data);
+export const deleteFacility = (schoolId, facilityId) => api.delete(`/api/v1/schools/${schoolId}/facilities/${facilityId}`);
 
 // --- Reports ---
 export const getTPTotal = () => api.get('/api/v1/reports/public/teaching-personnel');
@@ -260,6 +274,13 @@ export const updatePersonnel = (id, data) => api.put(`/api/v1/personnel/${id}`, 
 export const deletePersonnel = (id) => api.delete(`/api/v1/personnel/${id}`);
 export const transferPersonnel = (id, data) => api.post(`/api/v1/personnel/${id}/transfer`, data);
 export const getPersonnelTransfers = (id) => api.get(`/api/v1/personnel/${id}/transfers`);
+
+// --- Students ---
+export const getStudents = (page = 1, limit = 10, params = {}) => api.get('/api/v1/students', { params: { page, limit, ...params } });
+export const createStudent = (data) => api.post('/api/v1/students', data);
+export const getStudent = (id) => api.get(`/api/v1/students/${id}`);
+export const updateStudent = (id, data) => api.put(`/api/v1/students/${id}`, data);
+export const deleteStudent = (id) => api.delete(`/api/v1/students/${id}`);
 
 // --- Enrollments ---
 export const getEnrollments = (page = 1, limit = 10, params = {}) => api.get('/api/v1/enrollments', { params: { page, limit, ...params } });
@@ -300,6 +321,28 @@ export const uploadStudentAvatar = (id, file) => {
   return api.put(`/api/v1/avatar/students/${id}`, formData, {
     headers: { 'Content-Type': 'multipart/form-data' }
   });
+};
+
+// Extract a human-readable error message from an axios error.
+// Backend error shape: { success: false, error: { code, message, details } }
+export const getErrorMessage = (err, fallback = 'Unknown error') => {
+  const data = err?.response?.data;
+  if (!data) return err?.message || fallback;
+
+  const errorObj = data.error;
+  if (errorObj && typeof errorObj === 'object') {
+    if (typeof errorObj.message === 'string' && errorObj.message) return errorObj.message;
+    if (errorObj.details && typeof errorObj.details === 'object') {
+      const parts = Object.entries(errorObj.details).map(([field, value]) =>
+        `${field}: ${Array.isArray(value) ? value.join(', ') : String(value)}`
+      );
+      if (parts.length) return parts.join('; ');
+    }
+  }
+
+  if (typeof data.message === 'string' && data.message) return data.message;
+  if (typeof err?.message === 'string') return err.message;
+  return fallback;
 };
 
 export default api;

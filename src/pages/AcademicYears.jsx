@@ -1,10 +1,17 @@
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useCallback } from 'react';
+import { useSearchParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { getSessions, createSession, getSession, updateSession, deleteSession, activateSession } from '../api/client';
+import { getSessions, createSession, getSession, updateSession, deleteSession, activateSession, getErrorMessage } from '../api/client';
 import AlertBox from '../components/common/AlertBox';
+
+// Backend time.Time fields expect RFC3339; <input type="date"> gives YYYY-MM-DD.
+const toISODate = (dateStr) => (dateStr ? new Date(`${dateStr}T00:00:00Z`).toISOString() : '');
 
 const AcademicYears = () => {
   const { token } = useAuth();
+  const [searchParams] = useSearchParams();
+  const navigate = useNavigate();
+  const schoolId = searchParams.get('school_id');
   const [sessions, setSessions] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -12,9 +19,8 @@ const AcademicYears = () => {
   const [showModal, setShowModal] = useState(false);
   const [selectedSession, setSelectedSession] = useState(null);
   const [openDropdownId, setOpenDropdownId] = useState(null);
-  const dropdownRef = useRef(null);
 
-  const [formData, setFormData] = useState({ name: '', start_date: '', end_date: '' });
+  const [formData, setFormData] = useState({ name: '', start_year: '', end_year: '', start_date: '', end_date: '' });
 
   const fetchSessions = useCallback(async () => {
     if (!token) {
@@ -25,18 +31,18 @@ const AcademicYears = () => {
     try {
       setLoading(true);
       setError('');
-      const res = await getSessions();
+      const res = await getSessions(1, 10, schoolId);
       const list = Array.isArray(res.data) ? res.data : (res.data?.data ?? []);
       setSessions(list);
     } catch (err) {
       console.error(err);
       const status = err?.response?.status;
-      const msg = err?.response?.data?.message || err?.message || 'Unknown error';
+      const msg = getErrorMessage(err);
       setError(`Failed to fetch academic sessions (${status ?? 'network error'}): ${msg}`);
     } finally {
       setLoading(false);
     }
-  }, [token]);
+  }, [token, schoolId]);
 
   useEffect(() => {
     fetchSessions();
@@ -44,7 +50,7 @@ const AcademicYears = () => {
 
   useEffect(() => {
     const handleClickOutside = (event) => {
-      if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
+      if (!event.target.closest('.dropdown-container')) {
         setOpenDropdownId(null);
       }
     };
@@ -56,10 +62,12 @@ const AcademicYears = () => {
     setModalMode(mode);
     setSelectedSession(session);
     if (mode === 'create' || mode === 'edit') {
-      setFormData({ 
-        name: session?.name || '', 
-        start_date: session?.start_date ? session.start_date.split('T')[0] : '', 
-        end_date: session?.end_date ? session.end_date.split('T')[0] : '' 
+      setFormData({
+        name: session?.name || '',
+        start_year: session?.start_year ?? '',
+        end_year: session?.end_year ?? '',
+        start_date: session?.start_date ? session.start_date.split('T')[0] : '',
+        end_date: session?.end_date ? session.end_date.split('T')[0] : '',
       });
     }
     setShowModal(true);
@@ -69,15 +77,20 @@ const AcademicYears = () => {
   const handleCreateSession = async (e) => {
     e.preventDefault();
     try {
-      const payload = { name: formData.name, start_date: formData.start_date, end_date: formData.end_date };
-      await createSession(payload);
+      const payload = {
+        name: formData.name,
+        start_year: Number(formData.start_year),
+        end_year: Number(formData.end_year),
+        start_date: toISODate(formData.start_date),
+        end_date: toISODate(formData.end_date),
+      };
+      await createSession(payload, schoolId);
       await fetchSessions();
       setShowModal(false);
     } catch (err) {
       console.error('Create session error:', err);
       const status = err?.response?.status;
-      const backendMsg = err?.response?.data?.message || err?.response?.data?.error || err?.message || 'Unknown error';
-      setError(`Failed to create academic session (${status ?? 'network error'}): ${backendMsg}`);
+      setError(`Failed to create academic session (${status ?? 'network error'}): ${getErrorMessage(err)}`);
     }
   };
 
@@ -85,15 +98,14 @@ const AcademicYears = () => {
     e.preventDefault();
     if (!selectedSession) return;
     try {
-      const payload = { name: formData.name, start_date: formData.start_date, end_date: formData.end_date };
+      const payload = { name: formData.name, start_date: toISODate(formData.start_date), end_date: toISODate(formData.end_date) };
       await updateSession(selectedSession.id, payload);
       await fetchSessions();
       setShowModal(false);
     } catch (err) {
       console.error('Update session error:', err);
       const status = err?.response?.status;
-      const backendMsg = err?.response?.data?.message || err?.response?.data?.error || err?.message || 'Unknown error';
-      setError(`Failed to update academic session (${status ?? 'network error'}): ${backendMsg}`);
+      setError(`Failed to update academic session (${status ?? 'network error'}): ${getErrorMessage(err)}`);
     }
   };
 
@@ -111,8 +123,7 @@ const AcademicYears = () => {
     } catch (err) {
       console.error('Delete session error:', err);
       const status = err?.response?.status;
-      const backendMsg = err?.response?.data?.message || err?.response?.data?.error || err?.message || 'Unknown error';
-      setError(`Failed to delete academic session (${status ?? 'network error'}): ${backendMsg}`);
+      setError(`Failed to delete academic session (${status ?? 'network error'}): ${getErrorMessage(err)}`);
     }
   };
 
@@ -123,14 +134,13 @@ const AcademicYears = () => {
       return;
     }
     try {
-      await activateSession(selectedSession.id);
+      await activateSession(selectedSession.id, schoolId || selectedSession?.school_id);
       await fetchSessions();
       setOpenDropdownId(null);
     } catch (err) {
       console.error('Activate session error:', err);
       const status = err?.response?.status;
-      const backendMsg = err?.response?.data?.message || err?.response?.data?.error || err?.message || 'Unknown error';
-      setError(`Failed to activate academic session (${status ?? 'network error'}): ${backendMsg}`);
+      setError(`Failed to activate academic session (${status ?? 'network error'}): ${getErrorMessage(err)}`);
     }
   };
 
@@ -151,8 +161,7 @@ const AcademicYears = () => {
     } catch (err) {
       console.error('View session error:', err);
       const status = err?.response?.status;
-      const backendMsg = err?.response?.data?.message || err?.response?.data?.error || err?.message || 'Unknown error';
-      setError(`Failed to fetch academic session details (${status ?? 'network error'}): ${backendMsg}`);
+      setError(`Failed to fetch academic session details (${status ?? 'network error'}): ${getErrorMessage(err)}`);
     }
   };
 
@@ -219,14 +228,15 @@ const AcademicYears = () => {
                     )}
                   </td>
                   <td style={{ padding: '15px' }}>
-                    <div style={{ position: 'relative', display: 'inline-block' }}>
-                      <button
-                        onClick={(e) => { e.stopPropagation(); setOpenDropdownId(openDropdownId === session.id ? null : session.id); }}
-                        style={{ padding: '6px 12px', background: 'var(--bg-light)', border: '1px solid var(--border)', borderRadius: '4px', cursor: 'pointer' }}
-                        ref={openDropdownId === session.id ? dropdownRef : null}
-                      >
-                        •••
-                      </button>
+                    <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                     
+                      <div className="dropdown-container" style={{ position: 'relative', display: 'inline-block' }}>
+                        <button
+                          onClick={(e) => { e.stopPropagation(); setOpenDropdownId(openDropdownId === session.id ? null : session.id); }}
+                          style={{ padding: '6px 12px', background: 'var(--bg-light)', border: '1px solid var(--border)', borderRadius: '4px', cursor: 'pointer' }}
+                        >
+                          •••
+                        </button>
                       {openDropdownId === session.id && (
                         <div style={{
                           position: 'absolute',
@@ -240,7 +250,7 @@ const AcademicYears = () => {
                           minWidth: '140px'
                         }}>
                           <button
-                            onClick={() => { setSelectedSession(session); handleViewSession(); }}
+                            onClick={() => { setOpenDropdownId(null); setSelectedSession(session); handleViewSession(); }}
                             style={{ display: 'block', width: '100%', padding: '10px 16px', border: 'none', background: 'transparent', cursor: 'pointer', textAlign: 'left', fontSize: '0.9rem' }}
                           >
                             View
@@ -265,9 +275,16 @@ const AcademicYears = () => {
                           >
                             Delete
                           </button>
+                          <button
+                            onClick={() => { setOpenDropdownId(null); navigate(`/terms?session_id=${session.id}`); }}
+                            style={{ display: 'block', width: '100%', padding: '10px 16px', color: '#3e7430', border: 'none', background: 'transparent', cursor: 'pointer', textAlign: 'left', fontSize: '0.85rem' }}
+                          >
+                            Add Terms
+                          </button>
                         </div>
                       )}
                     </div>
+                  </div>
                   </td>
                 </tr>
               ))
@@ -304,6 +321,38 @@ const AcademicYears = () => {
                   }}
                   required
                 />
+              </div>
+              <div style={{ display: 'flex', gap: '12px', marginBottom: '15px' }}>
+                <div style={{ flex: 1 }}>
+                  <label style={{ display: 'block', marginBottom: '5px', fontWeight: '500' }}>Start Year</label>
+                  <input
+                    type="number"
+                    min="2000"
+                    value={formData.start_year}
+                    onChange={(e) => setFormData({ ...formData, start_year: e.target.value })}
+                    disabled={modalMode === 'view'}
+                    style={{
+                      width: '100%', padding: '10px', border: '1px solid var(--border)',
+                      borderRadius: '8px', background: modalMode === 'view' ? 'var(--bg-light)' : 'white'
+                    }}
+                    required
+                  />
+                </div>
+                <div style={{ flex: 1 }}>
+                  <label style={{ display: 'block', marginBottom: '5px', fontWeight: '500' }}>End Year</label>
+                  <input
+                    type="number"
+                    min="2000"
+                    value={formData.end_year}
+                    onChange={(e) => setFormData({ ...formData, end_year: e.target.value })}
+                    disabled={modalMode === 'view'}
+                    style={{
+                      width: '100%', padding: '10px', border: '1px solid var(--border)',
+                      borderRadius: '8px', background: modalMode === 'view' ? 'var(--bg-light)' : 'white'
+                    }}
+                    required
+                  />
+                </div>
               </div>
               <div style={{ marginBottom: '15px' }}>
                 <label style={{ display: 'block', marginBottom: '5px', fontWeight: '500' }}>Start Date</label>

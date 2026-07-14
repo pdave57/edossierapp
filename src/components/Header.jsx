@@ -16,8 +16,8 @@ function Header() {
   }, []);
 
   const navItems = [
-    { path: '/', label: 'Home', hash: false },
-    { path: '/About', label: 'About', hash: false },
+    { path: '/', label: 'Home ', hash: false },
+    { path: '/About', label: ' About', hash: false },
     { path: '#officers', label: 'Officers', hash: true },
     { path: '#systems', label: 'Systems', hash: true },
     { path: '/login', label: 'Login', hash: false, className: 'nav-login' },

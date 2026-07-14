@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useAuth } from '../context/AuthContext';
-import { getSubjects, createSubject, getSubject, updateSubject, deleteSubject } from '../api/client';
+import { getSubjects, createSubject, getSubject, updateSubject, deleteSubject, getErrorMessage } from '../api/client';
 import AlertBox from '../components/common/AlertBox';
 
 const Subjects = () => {
@@ -12,9 +12,27 @@ const Subjects = () => {
   const [showModal, setShowModal] = useState(false);
   const [selectedSubject, setSelectedSubject] = useState(null);
   const [openDropdownId, setOpenDropdownId] = useState(null);
+  const [currentPage, setCurrentPage] = useState(1);
+  const rowsPerPage = 10;
   const dropdownRef = useRef(null);
 
-  const [formData, setFormData] = useState({ name: '', code: '', description: '' });
+  const [formData, setFormData] = useState({ name: '', code: '', category: '', level_type: '' });
+
+// Fixed option sets for subject category and level type. Values match the
+// backend's accepted enum (uppercase); labels are shown to the user.
+const SUBJECT_CATEGORIES = [
+  { label: 'Core', value: 'CORE' },
+  { label: 'Elective', value: 'ELECTIVE' },
+  { label: 'Practical', value: 'PRACTICAL' },
+];
+
+const SUBJECT_LEVEL_TYPES = [
+  { label: 'Nursery', value: 'NURSERY' },
+  { label: 'Primary', value: 'PRIMARY' },
+  { label: 'JSS', value: 'JSS' },
+  { label: 'SSS', value: 'SSS' },
+  { label: 'Vocational', value: 'VOCATIONAL' },
+];
 
   const fetchSubjects = useCallback(async () => {
     if (!token) {
@@ -56,7 +74,12 @@ const Subjects = () => {
     setModalMode(mode);
     setSelectedSubject(subject);
     if (mode === 'create' || mode === 'edit') {
-      setFormData({ name: subject?.name || '', code: subject?.code || '', description: subject?.description || '' });
+      setFormData({
+        name: subject?.name || '',
+        code: subject?.code || '',
+        category: subject?.category || '',
+        level_type: subject?.level_type || '',
+      });
     }
     setShowModal(true);
     setOpenDropdownId(null);
@@ -65,21 +88,18 @@ const Subjects = () => {
   const handleCreateSubject = async (e) => {
     e.preventDefault();
     try {
-      const payload = { name: formData.name, code: formData.code, description: formData.description };
+      const payload = {
+        name: formData.name,
+        code: formData.code,
+        category: formData.category,
+        level_type: formData.level_type,
+      };
       await createSubject(payload);
       await fetchSubjects();
       setShowModal(false);
     } catch (err) {
       console.error('Create subject error:', err);
-      const status = err?.response?.status;
-      const backendMsg = typeof err?.response?.data?.message === 'string'
-        ? err?.response?.data?.message
-        : typeof err?.response?.data?.error === 'string'
-        ? err?.response?.data?.error
-        : typeof err?.message === 'string'
-        ? err?.message
-        : JSON.stringify(err?.response?.data || err?.message || 'Unknown error');
-      setError(`Failed to create subject (${status ?? 'network error'}): ${backendMsg}`);
+      setError(`Failed to create subject (${err?.response?.status ?? 'network error'}): ${getErrorMessage(err, 'Unknown error')}`);
     }
   };
 
@@ -87,21 +107,18 @@ const Subjects = () => {
     e.preventDefault();
     if (!selectedSubject) return;
     try {
-      const payload = { name: formData.name, code: formData.code, description: formData.description };
+      const payload = {
+        name: formData.name,
+        code: formData.code,
+        category: formData.category,
+        level_type: formData.level_type,
+      };
       await updateSubject(selectedSubject.id, payload);
       await fetchSubjects();
       setShowModal(false);
     } catch (err) {
       console.error('Update subject error:', err);
-      const status = err?.response?.status;
-      const backendMsg = typeof err?.response?.data?.message === 'string'
-        ? err?.response?.data?.message
-        : typeof err?.response?.data?.error === 'string'
-        ? err?.response?.data?.error
-        : typeof err?.message === 'string'
-        ? err?.message
-        : JSON.stringify(err?.response?.data || err?.message || 'Unknown error');
-      setError(`Failed to update subject (${status ?? 'network error'}): ${backendMsg}`);
+      setError(`Failed to update subject (${err?.response?.status ?? 'network error'}): ${getErrorMessage(err, 'Unknown error')}`);
     }
   };
 
@@ -118,15 +135,7 @@ const Subjects = () => {
       setOpenDropdownId(null);
     } catch (err) {
       console.error('Delete subject error:', err);
-      const status = err?.response?.status;
-      const backendMsg = typeof err?.response?.data?.message === 'string'
-        ? err?.response?.data?.message
-        : typeof err?.response?.data?.error === 'string'
-        ? err?.response?.data?.error
-        : typeof err?.message === 'string'
-        ? err?.message
-        : JSON.stringify(err?.response?.data || err?.message || 'Unknown error');
-      setError(`Failed to delete subject (${status ?? 'network error'}): ${backendMsg}`);
+      setError(`Failed to delete subject (${err?.response?.status ?? 'network error'}): ${getErrorMessage(err, 'Unknown error')}`);
     }
   };
 
@@ -136,21 +145,18 @@ const Subjects = () => {
       const res = await getSubject(selectedSubject.id);
       const subjectData = res.data?.data || res.data;
       setSelectedSubject(subjectData);
-      setFormData({ name: subjectData.name || '', code: subjectData.code || '', description: subjectData.description || '' });
+      setFormData({
+        name: subjectData.name || '',
+        code: subjectData.code || '',
+        category: subjectData.category || '',
+        level_type: subjectData.level_type || '',
+      });
       setModalMode('view');
       setShowModal(true);
       setOpenDropdownId(null);
     } catch (err) {
       console.error('View subject error:', err);
-      const status = err?.response?.status;
-      const backendMsg = typeof err?.response?.data?.message === 'string'
-        ? err?.response?.data?.message
-        : typeof err?.response?.data?.error === 'string'
-        ? err?.response?.data?.error
-        : typeof err?.message === 'string'
-        ? err?.message
-        : JSON.stringify(err?.response?.data || err?.message || 'Unknown error');
-      setError(`Failed to fetch subject details (${status ?? 'network error'}): ${backendMsg}`);
+      setError(`Failed to fetch subject details (${err?.response?.status ?? 'network error'}): ${getErrorMessage(err, 'Unknown error')}`);
     }
   };
 
@@ -161,6 +167,11 @@ const Subjects = () => {
       </div>
     );
   }
+
+  const filteredSubjects = subjects;
+  const totalPages = Math.max(1, Math.ceil(filteredSubjects.length / rowsPerPage));
+  const safeCurrentPage = Math.min(currentPage, totalPages);
+  const paginatedSubjects = filteredSubjects.slice((safeCurrentPage - 1) * rowsPerPage, safeCurrentPage * rowsPerPage);
 
   return (
     <div style={{ padding: '40px', maxWidth: '1400px', margin: '0 auto' }}>
@@ -191,23 +202,25 @@ const Subjects = () => {
             <tr style={{ background: 'var(--bg-light)', borderBottom: '2px solid var(--border)' }}>
               <th style={{ padding: '15px', textAlign: 'left' }}>Name</th>
               <th style={{ padding: '15px', textAlign: 'left' }}>Code</th>
-              <th style={{ padding: '15px', textAlign: 'left' }}>Description</th>
+              <th style={{ padding: '15px', textAlign: 'left' }}>Category</th>
+              <th style={{ padding: '15px', textAlign: 'left' }}>Level Type</th>
               <th style={{ padding: '15px', textAlign: 'left', width: '120px' }}>Actions</th>
             </tr>
           </thead>
           <tbody>
-            {subjects.length === 0 ? (
+            {paginatedSubjects.length === 0 ? (
               <tr>
-                <td colSpan="3" style={{ padding: '40px', textAlign: 'center', color: 'var(--gray)' }}>
+                <td colSpan="5" style={{ padding: '40px', textAlign: 'center', color: 'var(--gray)' }}>
                   No subjects found. Click "+ Add New" to create one.
                 </td>
               </tr>
             ) : (
-              subjects.map((subject) => (
+              paginatedSubjects.map((subject) => (
                 <tr key={subject.id} style={{ borderBottom: '1px solid var(--border)' }}>
                   <td style={{ padding: '15px' }}>{subject.name}</td>
                   <td style={{ padding: '15px' }}>{subject.code || '—'}</td>
-                  <td style={{ padding: '15px' }}>{subject.description || '—'}</td>
+                  <td style={{ padding: '15px' }}>{subject.category || '—'}</td>
+                  <td style={{ padding: '15px' }}>{subject.level_type || '—'}</td>
                   <td style={{ padding: '15px' }}>
                     <div style={{ position: 'relative', display: 'inline-block' }}>
                       <button
@@ -257,6 +270,34 @@ const Subjects = () => {
         </table>
       </div>
 
+      {totalPages > 1 && (
+        <div style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', gap: '8px', marginTop: '20px', flexWrap: 'wrap' }}>
+          <button
+            onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+            disabled={safeCurrentPage === 1}
+            style={{ padding: '6px 12px', border: '1px solid var(--border)', borderRadius: '6px', background: 'white', cursor: safeCurrentPage === 1 ? 'not-allowed' : 'pointer', opacity: safeCurrentPage === 1 ? 0.5 : 1 }}
+          >
+            Prev
+          </button>
+          {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
+            <button
+              key={page}
+              onClick={() => setCurrentPage(page)}
+              style={{ padding: '6px 12px', border: '1px solid var(--border)', borderRadius: '6px', background: page === safeCurrentPage ? '#3e7430' : 'white', color: page === safeCurrentPage ? 'white' : 'black', cursor: 'pointer', fontWeight: page === safeCurrentPage ? '600' : '400' }}
+            >
+              {page}
+            </button>
+          ))}
+          <button
+            onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+            disabled={safeCurrentPage === totalPages}
+            style={{ padding: '6px 12px', border: '1px solid var(--border)', borderRadius: '6px', background: 'white', cursor: safeCurrentPage === totalPages ? 'not-allowed' : 'pointer', opacity: safeCurrentPage === totalPages ? 0.5 : 1 }}
+          >
+            Next
+          </button>
+        </div>
+      )}
+
       {showModal && (
         <div style={{
           position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
@@ -300,19 +341,41 @@ const Subjects = () => {
                   required
                 />
               </div>
-              <div style={{ marginBottom: '20px' }}>
-                <label style={{ display: 'block', marginBottom: '5px', fontWeight: '500' }}>Description</label>
-                <textarea
-                  value={formData.description}
-                  onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+              <div style={{ marginBottom: '15px' }}>
+                <label style={{ display: 'block', marginBottom: '5px', fontWeight: '500' }}>Subject Category</label>
+                <select
+                  value={formData.category}
+                  onChange={(e) => setFormData({ ...formData, category: e.target.value })}
                   disabled={modalMode === 'view'}
-                  rows="3"
                   style={{
                     width: '100%', padding: '10px', border: '1px solid var(--border)',
-                    borderRadius: '8px', background: modalMode === 'view' ? 'var(--bg-light)' : 'white',
-                    resize: 'vertical', fontFamily: 'inherit'
+                    borderRadius: '8px', background: modalMode === 'view' ? 'var(--bg-light)' : 'white'
                   }}
-                />
+                  required
+                >
+                  <option value="">Select category</option>
+                  {SUBJECT_CATEGORIES.map((cat) => (
+                    <option key={cat.value} value={cat.value}>{cat.label}</option>
+                  ))}
+                </select>
+              </div>
+              <div style={{ marginBottom: '20px' }}>
+                <label style={{ display: 'block', marginBottom: '5px', fontWeight: '500' }}>Level Type</label>
+                <select
+                  value={formData.level_type}
+                  onChange={(e) => setFormData({ ...formData, level_type: e.target.value })}
+                  disabled={modalMode === 'view'}
+                  style={{
+                    width: '100%', padding: '10px', border: '1px solid var(--border)',
+                    borderRadius: '8px', background: modalMode === 'view' ? 'var(--bg-light)' : 'white'
+                  }}
+                  required
+                >
+                  <option value="">Select level type</option>
+                  {SUBJECT_LEVEL_TYPES.map((lt) => (
+                    <option key={lt.value} value={lt.value}>{lt.label}</option>
+                  ))}
+                </select>
               </div>
 
               {modalMode !== 'view' && (

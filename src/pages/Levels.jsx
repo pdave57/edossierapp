@@ -1,10 +1,22 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { getLevels, createLevel, getLevel, updateLevel, deleteLevel } from '../api/client';
+import { getLevels, createLevel, getLevel, updateLevel, deleteLevel, getErrorMessage } from '../api/client';
 import AlertBox from '../components/common/AlertBox';
+
+const LEVEL_TYPES = [
+  { value: 'NURSERY', label: 'Nursery' },
+  { value: 'PRIMARY', label: 'Primary' },
+  { value: 'JSS', label: 'JSS (Junior Secondary)' },
+  { value: 'SSS', label: 'SSS (Senior Secondary)' },
+  { value: 'VOCATIONAL', label: 'Vocational' },
+];
 
 const Levels = () => {
   const { token } = useAuth();
+  const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const schoolId = searchParams.get('school_id');
   const [levels, setLevels] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -14,7 +26,7 @@ const Levels = () => {
   const [openDropdownId, setOpenDropdownId] = useState(null);
   const dropdownRef = useRef(null);
 
-  const [formData, setFormData] = useState({ name: '', code: '', description: '' });
+  const [formData, setFormData] = useState({ name: '', code: '', type: '', order: '' });
 
   const fetchLevels = useCallback(async () => {
     if (!token) {
@@ -25,7 +37,7 @@ const Levels = () => {
     try {
       setLoading(true);
       setError('');
-      const res = await getLevels();
+      const res = await getLevels(1, 10, schoolId);
       const list = Array.isArray(res.data) ? res.data : (res.data?.levels ?? res.data?.data ?? []);
       setLevels(list);
     } catch (err) {
@@ -36,7 +48,7 @@ const Levels = () => {
     } finally {
       setLoading(false);
     }
-  }, [token]);
+  }, [token, schoolId]);
 
   useEffect(() => {
     fetchLevels();
@@ -56,7 +68,12 @@ const Levels = () => {
     setModalMode(mode);
     setSelectedLevel(level);
     if (mode === 'create' || mode === 'edit') {
-      setFormData({ name: level?.name || '', code: level?.code || '', description: level?.description || '' });
+      setFormData({
+        name: level?.name || '',
+        code: level?.code || '',
+        type: level?.type || '',
+        order: level?.order ?? '',
+      });
     }
     setShowModal(true);
     setOpenDropdownId(null);
@@ -65,21 +82,18 @@ const Levels = () => {
   const handleCreateLevel = async (e) => {
     e.preventDefault();
     try {
-      const payload = { name: formData.name, code: formData.code, description: formData.description };
-      await createLevel(payload);
+      const payload = {
+        name: formData.name,
+        code: formData.code,
+        type: formData.type,
+        order: formData.order !== '' ? Number(formData.order) : undefined,
+      };
+      await createLevel(payload, schoolId);
       await fetchLevels();
       setShowModal(false);
     } catch (err) {
       console.error('Create level error:', err);
-      const status = err?.response?.status;
-      const backendMsg = typeof err?.response?.data?.message === 'string'
-        ? err?.response?.data?.message
-        : typeof err?.response?.data?.error === 'string'
-        ? err?.response?.data?.error
-        : typeof err?.message === 'string'
-        ? err?.message
-        : JSON.stringify(err?.response?.data || err?.message || 'Unknown error');
-      setError(`Failed to create level (${status ?? 'network error'}): ${backendMsg}`);
+      setError(`Failed to create level (${err?.response?.status ?? 'network error'}): ${getErrorMessage(err, 'Unknown error')}`);
     }
   };
 
@@ -87,21 +101,18 @@ const Levels = () => {
     e.preventDefault();
     if (!selectedLevel) return;
     try {
-      const payload = { name: formData.name, code: formData.code, description: formData.description };
+      const payload = {
+        name: formData.name,
+        code: formData.code,
+        type: formData.type,
+        order: formData.order !== '' ? Number(formData.order) : undefined,
+      };
       await updateLevel(selectedLevel.id, payload);
       await fetchLevels();
       setShowModal(false);
     } catch (err) {
       console.error('Update level error:', err);
-      const status = err?.response?.status;
-      const backendMsg = typeof err?.response?.data?.message === 'string'
-        ? err?.response?.data?.message
-        : typeof err?.response?.data?.error === 'string'
-        ? err?.response?.data?.error
-        : typeof err?.message === 'string'
-        ? err?.message
-        : JSON.stringify(err?.response?.data || err?.message || 'Unknown error');
-      setError(`Failed to update level (${status ?? 'network error'}): ${backendMsg}`);
+      setError(`Failed to update level (${err?.response?.status ?? 'network error'}): ${getErrorMessage(err, 'Unknown error')}`);
     }
   };
 
@@ -118,15 +129,7 @@ const Levels = () => {
       setOpenDropdownId(null);
     } catch (err) {
       console.error('Delete level error:', err);
-      const status = err?.response?.status;
-      const backendMsg = typeof err?.response?.data?.message === 'string'
-        ? err?.response?.data?.message
-        : typeof err?.response?.data?.error === 'string'
-        ? err?.response?.data?.error
-        : typeof err?.message === 'string'
-        ? err?.message
-        : JSON.stringify(err?.response?.data || err?.message || 'Unknown error');
-      setError(`Failed to delete level (${status ?? 'network error'}): ${backendMsg}`);
+      setError(`Failed to delete level (${err?.response?.status ?? 'network error'}): ${getErrorMessage(err, 'Unknown error')}`);
     }
   };
 
@@ -136,21 +139,18 @@ const Levels = () => {
       const res = await getLevel(selectedLevel.id);
       const levelData = res.data?.data || res.data;
       setSelectedLevel(levelData);
-      setFormData({ name: levelData.name || '', code: levelData.code || '', description: levelData.description || '' });
+      setFormData({
+        name: levelData.name || '',
+        code: levelData.code || '',
+        type: levelData.type || '',
+        order: levelData.order ?? '',
+      });
       setModalMode('view');
       setShowModal(true);
       setOpenDropdownId(null);
     } catch (err) {
       console.error('View level error:', err);
-      const status = err?.response?.status;
-      const backendMsg = typeof err?.response?.data?.message === 'string'
-        ? err?.response?.data?.message
-        : typeof err?.response?.data?.error === 'string'
-        ? err?.response?.data?.error
-        : typeof err?.message === 'string'
-        ? err?.message
-        : JSON.stringify(err?.response?.data || err?.message || 'Unknown error');
-      setError(`Failed to fetch level details (${status ?? 'network error'}): ${backendMsg}`);
+      setError(`Failed to fetch level details (${err?.response?.status ?? 'network error'}): ${getErrorMessage(err, 'Unknown error')}`);
     }
   };
 
@@ -191,14 +191,15 @@ const Levels = () => {
             <tr style={{ background: 'var(--bg-light)', borderBottom: '2px solid var(--border)' }}>
               <th style={{ padding: '15px', textAlign: 'left' }}>Name</th>
               <th style={{ padding: '15px', textAlign: 'left' }}>Code</th>
-              <th style={{ padding: '15px', textAlign: 'left' }}>Description</th>
+              <th style={{ padding: '15px', textAlign: 'left' }}>Type</th>
+              <th style={{ padding: '15px', textAlign: 'left' }}>Order</th>
               <th style={{ padding: '15px', textAlign: 'left', width: '120px' }}>Actions</th>
             </tr>
           </thead>
           <tbody>
             {levels.length === 0 ? (
               <tr>
-                <td colSpan="3" style={{ padding: '40px', textAlign: 'center', color: 'var(--gray)' }}>
+                <td colSpan="5" style={{ padding: '40px', textAlign: 'center', color: 'var(--gray)' }}>
                   No levels found. Click "+ Add New" to create one.
                 </td>
               </tr>
@@ -207,7 +208,8 @@ const Levels = () => {
                 <tr key={level.id} style={{ borderBottom: '1px solid var(--border)' }}>
                   <td style={{ padding: '15px' }}>{level.name}</td>
                   <td style={{ padding: '15px' }}>{level.code || '—'}</td>
-                  <td style={{ padding: '15px' }}>{level.description || '—'}</td>
+                  <td style={{ padding: '15px' }}>{LEVEL_TYPES.find((lt) => lt.value === level.type)?.label || level.type || '—'}</td>
+                  <td style={{ padding: '15px' }}>{level.order ?? '—'}</td>
                   <td style={{ padding: '15px' }}>
                     <div style={{ position: 'relative', display: 'inline-block' }}>
                       <button
@@ -239,6 +241,12 @@ const Levels = () => {
                             style={{ display: 'block', width: '100%', padding: '10px 16px', border: 'none', background: 'transparent', cursor: 'pointer', textAlign: 'left', fontSize: '0.9rem' }}
                           >
                             Edit
+                          </button>
+                          <button
+                            onClick={() => navigate(`/sublevels?school_id=${schoolId}&level_id=${level.id}`)}
+                            style={{ display: 'block', width: '100%', padding: '10px 16px', border: 'none', background: 'transparent', cursor: 'pointer', textAlign: 'left', fontSize: '0.9rem', color: '#3e7430' }}
+                          >
+                            Sub Levels
                           </button>
                           <button
                             onClick={() => { setSelectedLevel(level); handleDeleteLevel(); }}
@@ -286,6 +294,7 @@ const Levels = () => {
                   required
                 />
               </div>
+             
               <div style={{ marginBottom: '15px' }}>
                 <label style={{ display: 'block', marginBottom: '5px', fontWeight: '500' }}>Code</label>
                 <input
@@ -300,17 +309,34 @@ const Levels = () => {
                   required
                 />
               </div>
-              <div style={{ marginBottom: '20px' }}>
-                <label style={{ display: 'block', marginBottom: '5px', fontWeight: '500' }}>Description</label>
-                <textarea
-                  value={formData.description}
-                  onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+              <div style={{ marginBottom: '15px' }}>
+                <label style={{ display: 'block', marginBottom: '5px', fontWeight: '500' }}>Type</label>
+                <select
+                  value={formData.type}
+                  onChange={(e) => setFormData({ ...formData, type: e.target.value })}
                   disabled={modalMode === 'view'}
-                  rows="3"
                   style={{
                     width: '100%', padding: '10px', border: '1px solid var(--border)',
-                    borderRadius: '8px', background: modalMode === 'view' ? 'var(--bg-light)' : 'white',
-                    resize: 'vertical', fontFamily: 'inherit'
+                    borderRadius: '8px', background: modalMode === 'view' ? 'var(--bg-light)' : 'white'
+                  }}
+                  required
+                >
+                  <option value="">Select type</option>
+                  {LEVEL_TYPES.map((lt) => (
+                    <option key={lt.value} value={lt.value}>{lt.label}</option>
+                  ))}
+                </select>
+              </div>
+              <div style={{ marginBottom: '20px' }}>
+                <label style={{ display: 'block', marginBottom: '5px', fontWeight: '500' }}>Order</label>
+                <input
+                  type="number"
+                  value={formData.order}
+                  onChange={(e) => setFormData({ ...formData, order: e.target.value })}
+                  disabled={modalMode === 'view'}
+                  style={{
+                    width: '100%', padding: '10px', border: '1px solid var(--border)',
+                    borderRadius: '8px', background: modalMode === 'view' ? 'var(--bg-light)' : 'white'
                   }}
                 />
               </div>

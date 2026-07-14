@@ -92,8 +92,8 @@ const NAV_GROUPS = [
     ],
   },
   {
-    id: "schools",
-    label: "Schools",
+    id: "schools-setup",
+    label: "Schools setup",
     accordion: true,
     defaultOpen: false,
     items: [
@@ -111,6 +111,7 @@ const NAV_GROUPS = [
     label: "Students",
     items: [
       { key: "students", label: "Students", icon: GraduationCap },
+      { key: "enrollments", label: "Enrollments", icon: FileSpreadsheet },
     ],
   },
   {

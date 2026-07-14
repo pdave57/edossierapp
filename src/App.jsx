@@ -30,6 +30,31 @@ import Terms from './pages/Terms';
 import Levels from './pages/Levels';
 import Sublevels from './pages/Sublevels';
 import Subjects from './pages/Subjects';
+import Schools from './pages/schools';
+import SchoolFacility from './pages/SchoolFacility';
+import Students from './pages/Students';
+import Enrollments from './pages/Enrollments';
+import RegisterStudent from './pages/RegisterStudent';
+
+// Shared navigation map: sidebar/item key -> route path.
+const ROUTE_MAP = {
+  dashboard: "/admindashboard",
+  users: "/users",
+  schools: "/schools",
+  roles: "/roles",
+  permissions: "/permissions",
+  zones: "/zones",
+  lgas: "/lgas",
+  home: "/",
+  "academic-years": "/academic-years",
+  terms: "/terms",
+  levels: "/levels",
+  sublevels: "/sublevels",
+  subjects: "/subjects",
+  facilities: "/facilities",
+  students: "/students",
+  enrollments: "/enrollments",
+};
 
 const PrivateRoute = ({ children }) => {
   const { isAuthenticated, loading } = useAuth();
@@ -41,27 +66,12 @@ const PrivateRoute = ({ children }) => {
   return isAuthenticated ? children : <Navigate to="/login" replace />;
 };
 
-const ADMIN_ROUTES = ["/admindashboard", "/users", "/roles", "/permissions", "/zones", "/lgas", "/academic-years", "/terms", "/levels", "/sublevels", "/subjects"];
+const ADMIN_ROUTES = ["/admindashboard", "/users", "/schools", "/roles", "/permissions", "/zones", "/lgas", "/academic-years", "/terms", "/levels", "/sublevels", "/subjects", "/facilities", "/students", "/register-student", "/enrollments"];
 
 function AdminDashboardRoute() {
   const navigate = useNavigate();
   const handleNavigate = (key) => {
-    const routeMap = {
-      dashboard: "/admindashboard",
-      users: "/users",
-      schools: "/schools",
-      roles: "/roles",
-      zones: "/zones",
-      permissions: "/permissions",
-      lgas: "/lgas",
-      home: "/",
-      "academic-years": "/academic-years",
-      terms: "/terms",
-      levels: "/levels",
-      sublevels: "/sublevels",
-      subjects: "/subjects",
-    };
-    const path = routeMap[key];
+    const path = ROUTE_MAP[key];
     if (path) navigate(path);
   };
 
@@ -77,22 +87,7 @@ function AdminDashboardRoute() {
 function UsersRoute() {
   const navigate = useNavigate();
   const handleNavigate = (key) => {
-    const routeMap = {
-      dashboard: "/admindashboard",
-      users: "/users",
-      schools: "/schools",
-      roles: "/roles",
-      permissions: "/permissions",
-      zones: "/zones",
-      lgas: "/lgas",
-      home: "/",
-      "academic-years": "/academic-years",
-      terms: "/terms",
-      levels: "/levels",
-      sublevels: "/sublevels",
-      subjects: "/subjects",
-    };
-    const path = routeMap[key];
+    const path = ROUTE_MAP[key];
     if (path) navigate(path);
   };
 
@@ -108,22 +103,7 @@ function UsersRoute() {
 function RolesRoute() {
   const navigate = useNavigate();
   const handleNavigate = (key) => {
-    const routeMap = {
-      dashboard: "/admindashboard",
-      users: "/users",
-      schools: "/schools",
-      roles: "/roles",
-      permissions: "/permissions",
-      zones: "/zones",
-      lgas: "/lgas",
-      home: "/",
-      "academic-years": "/academic-years",
-      terms: "/terms",
-      levels: "/levels",
-      sublevels: "/sublevels",
-      subjects: "/subjects",
-    };
-    const path = routeMap[key];
+    const path = ROUTE_MAP[key];
     if (path) navigate(path);
   };
 
@@ -139,22 +119,7 @@ function RolesRoute() {
 function PermissionsRoute() {
   const navigate = useNavigate();
   const handleNavigate = (key) => {
-    const routeMap = {
-      dashboard: "/admindashboard",
-      users: "/users",
-      schools: "/schools",
-      roles: "/roles",
-      permissions: "/permissions",
-      zones: "/zones",
-      lgas: "/lgas",
-      home: "/",
-      "academic-years": "/academic-years",
-      terms: "/terms",
-      levels: "/levels",
-      sublevels: "/sublevels",
-      subjects: "/subjects",
-    };
-    const path = routeMap[key];
+    const path = ROUTE_MAP[key];
     if (path) navigate(path);
   };
 
@@ -170,22 +135,7 @@ function PermissionsRoute() {
 function ZonesRoute() {
   const navigate = useNavigate();
   const handleNavigate = (key) => {
-    const routeMap = {
-      dashboard: "/admindashboard",
-      users: "/users",
-      schools: "/schools",
-      roles: "/roles",
-      permissions: "/permissions",
-      zones: "/zones",
-      lgas: "/lgas",
-      home: "/",
-      "academic-years": "/academic-years",
-      terms: "/terms",
-      levels: "/levels",
-      sublevels: "/sublevels",
-      subjects: "/subjects",
-    };
-    const path = routeMap[key];
+    const path = ROUTE_MAP[key];
     if (path) navigate(path);
   };
 
@@ -201,22 +151,7 @@ function ZonesRoute() {
 function LgasRoute() {
   const navigate = useNavigate();
   const handleNavigate = (key) => {
-    const routeMap = {
-      dashboard: "/admindashboard",
-      users: "/users",
-      schools: "/schools",
-      roles: "/roles",
-      permissions: "/permissions",
-      zones: "/zones",
-      lgas: "/lgas",
-      home: "/",
-      "academic-years": "/academic-years",
-      terms: "/terms",
-      levels: "/levels",
-      sublevels: "/sublevels",
-      subjects: "/subjects",
-    };
-    const path = routeMap[key];
+    const path = ROUTE_MAP[key];
     if (path) navigate(path);
   };
 
@@ -229,25 +164,26 @@ function LgasRoute() {
   );
 }
 
+function SchoolsRoute() {
+  const navigate = useNavigate();
+  const handleNavigate = (key) => {
+    const path = ROUTE_MAP[key];
+    if (path) navigate(path);
+  };
+
+  return (
+    <PrivateRoute>
+      <AdminPageLayout activeKey="schools" onNavigate={handleNavigate} permissions={null}>
+        <Schools />
+      </AdminPageLayout>
+    </PrivateRoute>
+  );
+}
+
 function AcademicYearsRoute() {
   const navigate = useNavigate();
   const handleNavigate = (key) => {
-    const routeMap = {
-      dashboard: "/admindashboard",
-      users: "/users",
-      schools: "/schools",
-      roles: "/roles",
-      permissions: "/permissions",
-      zones: "/zones",
-      lgas: "/lgas",
-      home: "/",
-      "academic-years": "/academic-years",
-      terms: "/terms",
-      levels: "/levels",
-      sublevels: "/sublevels",
-      subjects: "/subjects",
-    };
-    const path = routeMap[key];
+    const path = ROUTE_MAP[key];
     if (path) navigate(path);
   };
 
@@ -263,22 +199,7 @@ function AcademicYearsRoute() {
 function TermsRoute() {
   const navigate = useNavigate();
   const handleNavigate = (key) => {
-    const routeMap = {
-      dashboard: "/admindashboard",
-      users: "/users",
-      schools: "/schools",
-      roles: "/roles",
-      permissions: "/permissions",
-      zones: "/zones",
-      lgas: "/lgas",
-      home: "/",
-      "academic-years": "/academic-years",
-      terms: "/terms",
-      levels: "/levels",
-      sublevels: "/sublevels",
-      subjects: "/subjects",
-    };
-    const path = routeMap[key];
+    const path = ROUTE_MAP[key];
     if (path) navigate(path);
   };
 
@@ -294,22 +215,7 @@ function TermsRoute() {
 function LevelsRoute() {
   const navigate = useNavigate();
   const handleNavigate = (key) => {
-    const routeMap = {
-      dashboard: "/admindashboard",
-      users: "/users",
-      schools: "/schools",
-      roles: "/roles",
-      permissions: "/permissions",
-      zones: "/zones",
-      lgas: "/lgas",
-      home: "/",
-      "academic-years": "/academic-years",
-      terms: "/terms",
-      levels: "/levels",
-      sublevels: "/sublevels",
-      subjects: "/subjects",
-    };
-    const path = routeMap[key];
+    const path = ROUTE_MAP[key];
     if (path) navigate(path);
   };
 
@@ -325,22 +231,7 @@ function LevelsRoute() {
 function SublevelsRoute() {
   const navigate = useNavigate();
   const handleNavigate = (key) => {
-    const routeMap = {
-      dashboard: "/admindashboard",
-      users: "/users",
-      schools: "/schools",
-      roles: "/roles",
-      permissions: "/permissions",
-      zones: "/zones",
-      lgas: "/lgas",
-      home: "/",
-      "academic-years": "/academic-years",
-      terms: "/terms",
-      levels: "/levels",
-      sublevels: "/sublevels",
-      subjects: "/subjects",
-    };
-    const path = routeMap[key];
+    const path = ROUTE_MAP[key];
     if (path) navigate(path);
   };
 
@@ -356,22 +247,7 @@ function SublevelsRoute() {
 function SubjectsRoute() {
   const navigate = useNavigate();
   const handleNavigate = (key) => {
-    const routeMap = {
-      dashboard: "/admindashboard",
-      users: "/users",
-      schools: "/schools",
-      roles: "/roles",
-      permissions: "/permissions",
-      zones: "/zones",
-      lgas: "/lgas",
-      home: "/",
-      "academic-years": "/academic-years",
-      terms: "/terms",
-      levels: "/levels",
-      sublevels: "/sublevels",
-      subjects: "/subjects",
-    };
-    const path = routeMap[key];
+    const path = ROUTE_MAP[key];
     if (path) navigate(path);
   };
 
@@ -379,6 +255,70 @@ function SubjectsRoute() {
     <PrivateRoute>
       <AdminPageLayout activeKey="subjects" onNavigate={handleNavigate} permissions={null}>
         <Subjects />
+      </AdminPageLayout>
+    </PrivateRoute>
+  );
+}
+
+function FacilitiesRoute() {
+  const navigate = useNavigate();
+  const handleNavigate = (key) => {
+    const path = ROUTE_MAP[key];
+    if (path) navigate(path);
+  };
+
+  return (
+    <PrivateRoute>
+      <AdminPageLayout activeKey="facilities" onNavigate={handleNavigate} permissions={null}>
+        <SchoolFacility />
+      </AdminPageLayout>
+    </PrivateRoute>
+  );
+}
+
+function StudentsRoute() {
+  const navigate = useNavigate();
+  const handleNavigate = (key) => {
+    const path = ROUTE_MAP[key];
+    if (path) navigate(path);
+  };
+
+  return (
+    <PrivateRoute>
+      <AdminPageLayout activeKey="students" onNavigate={handleNavigate} permissions={null}>
+        <Students />
+      </AdminPageLayout>
+    </PrivateRoute>
+  );
+}
+
+function EnrollmentsRoute() {
+  const navigate = useNavigate();
+  const handleNavigate = (key) => {
+    const path = ROUTE_MAP[key];
+    if (path) navigate(path);
+  };
+
+  return (
+    <PrivateRoute>
+      <AdminPageLayout activeKey="enrollments" onNavigate={handleNavigate} permissions={null}>
+        <Enrollments />
+      </AdminPageLayout>
+    </PrivateRoute>
+  );
+}
+
+function RegisterStudentRoute() {
+  const navigate = useNavigate();
+  const handleNavigate = (key) => {
+    const path = ROUTE_MAP[key];
+    if (path) navigate(path);
+  };
+
+  return (
+    <PrivateRoute>
+      <AdminPageLayout activeKey="students" onNavigate={handleNavigate} permissions={null}>
+        <RegisterStudent />
       </AdminPageLayout>
     </PrivateRoute>
   );
@@ -409,11 +349,7 @@ function AppContent() {
         <Route path="/About" element={<About />} />
 
         <Route path="/users" element={<UsersRoute />} />
-        <Route path="/schools" element={
-          <PrivateRoute>
-            <div>Schools Management Page</div>
-          </PrivateRoute>
-        } />
+        <Route path="/schools" element={<SchoolsRoute />} />
         <Route path="/roles" element={<RolesRoute />} />
         <Route path="/permissions" element={<PermissionsRoute />} />
         <Route path="/zones" element={<ZonesRoute />} />
@@ -423,6 +359,10 @@ function AppContent() {
         <Route path="/levels" element={<LevelsRoute />} />
         <Route path="/sublevels" element={<SublevelsRoute />} />
         <Route path="/subjects" element={<SubjectsRoute />} />
+        <Route path="/facilities" element={<FacilitiesRoute />} />
+        <Route path="/students" element={<StudentsRoute />} />
+        <Route path="/register-student" element={<RegisterStudentRoute />} />
+        <Route path="/enrollments" element={<EnrollmentsRoute />} />
         <Route path="/admindashboard" element={<AdminDashboardRoute />} />
       </Routes>
 
