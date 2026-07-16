@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { getTerms, createTerm, getTerm, updateTerm, deleteTerm, getSessions, getErrorMessage, createSessionTerm, getSessionTerms } from '../api/client';
+import { useAuth } from '../context/AuthContext';
+import { getTerms, createTerm, getTerm, updateTerm, deleteTerm, getSessions, getErrorMessage, createSessionTerm, getSessionTerms, activateSessionTerm } from '../api/client';
 import AlertBox from '../components/common/AlertBox';
 
 // Backend time.Time fields expect RFC3339; <input type="date"> gives YYYY-MM-DD.
@@ -9,6 +10,7 @@ const toISODate = (dateStr) => (dateStr ? new Date(`${dateStr}T00:00:00Z`).toISO
 const emptyForm = { session_id: '', term_number: 1, name: '', start_date: '', end_date: '' };
 
 const Terms = () => {
+  const { user } = useAuth();
   const [searchParams] = useSearchParams();
   const sessionParam = searchParams.get('session_id');
   const [terms, setTerms] = useState([]);
@@ -26,7 +28,7 @@ const Terms = () => {
 
   const fetchSessions = useCallback(async () => {
     try {
-      const res = await getSessions(1, 200);
+      const res = await getSessions(1, 200, user?.school_id || null);
       const list = Array.isArray(res.data) ? res.data : (res.data?.data ?? []);
       setSessions(list);
       const map = {};
@@ -35,7 +37,7 @@ const Terms = () => {
     } catch (err) {
       console.error(err);
     }
-  }, []);
+  }, [user?.school_id]);
 
   const fetchTerms = useCallback(async (sessionId) => {
     try {
@@ -149,6 +151,23 @@ const Terms = () => {
     }
   };
 
+  const handleActivateTerm = async (term) => {
+    if (!term) return;
+    if (!window.confirm(`Are you sure you want to activate term "${term.name}"?`)) {
+      setOpenDropdownId(null);
+      return;
+    }
+    try {
+      await activateSessionTerm(term.session_id, term.id);
+      await fetchTerms(sessionParam);
+      setOpenDropdownId(null);
+    } catch (err) {
+      console.error('Activate term error:', err);
+      const status = err?.response?.status;
+      setError(`Failed to activate term (${status ?? 'network error'}): ${getErrorMessage(err)}`);
+    }
+  };
+
   const handleViewTerm = async () => {
     if (!selectedTerm?.id) return;
     try {
@@ -248,17 +267,20 @@ const Terms = () => {
                         •••
                       </button>
                       {openDropdownId === term.id && (
-                        <div style={{
-                          position: 'absolute',
-                          right: '0',
-                          top: '38px',
-                          background: 'white',
-                          border: '1px solid var(--border)',
-                          borderRadius: '8px',
-                          boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
-                          zIndex: 9999,
-                          minWidth: '140px'
-                        }}>
+                        <div
+                          onMouseDown={(e) => e.stopPropagation()}
+                          onClick={(e) => e.stopPropagation()}
+                          style={{
+                            position: 'absolute',
+                            right: '0',
+                            top: '38px',
+                            background: 'white',
+                            border: '1px solid var(--border)',
+                            borderRadius: '8px',
+                            boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
+                            zIndex: 9999,
+                            minWidth: '140px'
+                          }}>
                           <button
                             onClick={() => { setSelectedTerm(term); handleViewTerm(); }}
                             style={{ display: 'block', width: '100%', padding: '10px 16px', border: 'none', background: 'transparent', cursor: 'pointer', textAlign: 'left', fontSize: '0.9rem' }}
@@ -271,12 +293,20 @@ const Terms = () => {
                           >
                             Edit
                           </button>
+                          {!term.is_active && (
+                            <button
+                              onClick={() => handleActivateTerm(term)}
+                              style={{ display: 'block', width: '100%', padding: '10px 16px', border: 'none', background: 'transparent', cursor: 'pointer', textAlign: 'left', fontSize: '0.9rem', color: '#27ae60' }}
+                            >
+                              Activate
+                            </button>
+                          )}
                           <button
                             onClick={() => { setSelectedTerm(term); handleDeleteTerm(); }}
                             style={{ display: 'block', width: '100%', padding: '10px 16px', border: 'none', background: 'transparent', cursor: 'pointer', textAlign: 'left', fontSize: '0.9rem', color: '#e74c3c' }}
-                          >
-                            Delete
-                          </button>
+                            >
+                              Delete
+                            </button>
                         </div>
                       )}
                     </div>

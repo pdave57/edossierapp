@@ -19,6 +19,7 @@ import {
   ChevronDown,
   LogOut,
   ToiletIcon,
+  UserPlus,
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
@@ -109,9 +110,12 @@ const NAV_GROUPS = [
   {
     id: "students",
     label: "Students",
+    accordion: true,
+    defaultOpen: false,
     items: [
-      { key: "students", label: "Students", icon: GraduationCap },
-      { key: "enrollments", label: "Enrollments", icon: FileSpreadsheet },
+      { key: "register-student", label: "Register Student", icon: UserPlus },
+      { key: "add-enrollment", label: "Add Enrollment", icon: UserPlus },
+      { key: "student-management", label: "Students", icon: GraduationCap },      
     ],
   },
   {

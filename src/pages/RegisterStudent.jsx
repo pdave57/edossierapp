@@ -7,12 +7,20 @@ import {
   getStates,
   getStatelgas,
   getStudents,
+  getNextStudentSerial,
   getErrorMessage,
 } from '../api/client';
 
 const GENDERS = [
   { label: 'Male', value: 'MALE' },
   { label: 'Female', value: 'FEMALE' },
+  { label: 'Other', value: 'OTHER' },
+];
+
+const RELIGIONS = [
+  { label: 'Christianity', value: 'CHRISTIANITY' },
+  { label: 'Islam', value: 'ISLAM' },
+  { label: 'Traditional', value: 'TRADITIONAL' },
   { label: 'Other', value: 'OTHER' },
 ];
 
@@ -25,6 +33,8 @@ const RegisterStudent = () => {
   const [states, setStates] = useState([]);
   const [lgas, setLgas] = useState([]);
   const [students, setStudents] = useState([]);
+  const [nextSerial, setNextSerial] = useState(null);
+  const [serialLoading, setSerialLoading] = useState(false);
 
   const [formData, setFormData] = useState({
     school_id: '',
@@ -44,33 +54,35 @@ const RegisterStudent = () => {
     guardian_relation: '',
   });
 
-  // Schools within the selected LGA.
   const schoolsInLga = formData.lga_id
     ? schools.filter((s) => s.lga_id === formData.lga_id)
     : [];
 
-  // Preview of the enrollment number the backend will assign:
-  //   {StateCode}-{LGACode}-{YY}-{serial}
   const generateEnrollmentNo = () => {
-    const stateCode = (formData.state_id ? states.find((s) => s.id === formData.state_id)?.code : '') || '';
-    const lgaCode = (formData.lga_id ? lgas.find((l) => l.id === formData.lga_id)?.code : '') || '';
-    if (!stateCode || !lgaCode) return '';
-    const yy = String(new Date().getFullYear()).slice(-2);
-    const prefix = `${stateCode}-${lgaCode}-${yy}-`;
-    const existingSerials = students
-      .map((stu) => {
-        const no = stu.enrollment_no || '';
-        if (no.toUpperCase().startsWith(prefix.toUpperCase())) {
-          return parseInt(no.slice(prefix.length), 10);
-        }
-        return NaN;
-      })
-      .filter((n) => !isNaN(n));
-    const nextSerial = existingSerials.length > 0 ? Math.max(...existingSerials) + 1 : 1;
-    return `${prefix}${String(nextSerial).padStart(4, '0')}`;
+    const schoolCode = (formData.school_id ? schools.find((s) => s.id === formData.school_id)?.code : '') || '';
+    if (!schoolCode || !nextSerial) return '';
+    const yy = String(formData.enrollment_year || new Date().getFullYear()).slice(-2);
+    return `${schoolCode}-${yy}-${String(nextSerial).padStart(4, '0')}`;
   };
 
   const enrollmentNoPreview = generateEnrollmentNo();
+
+  const fetchNextSerial = useCallback(async (schoolId, year) => {
+    if (!schoolId) {
+      setNextSerial(null);
+      return;
+    }
+    setSerialLoading(true);
+    try {
+      const res = await getNextStudentSerial(schoolId, year);
+      const serial = res.data?.data?.serial_no;
+      setNextSerial(serial || null);
+    } catch (err) {
+      setNextSerial(null);
+    } finally {
+      setSerialLoading(false);
+    }
+  }, []);
 
   const fetchSchools = useCallback(async () => {
     try {
@@ -121,23 +133,22 @@ const RegisterStudent = () => {
     fetchSchools();
     fetchStates();
     fetchStudents();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [fetchSchools, fetchStates, fetchStudents]);
 
-  // Default the state to Taraba (or the first available) once the list loads.
   useEffect(() => {
     if (formData.state_id || states.length === 0) return;
     const taraba = states.find((s) => s.name?.toLowerCase() === 'taraba');
     const def = taraba || states[0];
     setFormData((prev) => ({ ...prev, state_id: def.id }));
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [states]);
 
-  // Fetch LGAs whenever the selected state changes.
   useEffect(() => {
     fetchLgasByState(formData.state_id);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [formData.state_id]);
+  }, [formData.state_id, fetchLgasByState]);
+
+  useEffect(() => {
+    fetchNextSerial(formData.school_id, formData.enrollment_year);
+  }, [formData.school_id, formData.enrollment_year, fetchNextSerial]);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -147,7 +158,6 @@ const RegisterStudent = () => {
   const handleStateChange = (e) => {
     const stateId = e.target.value;
     setFormData((prev) => ({ ...prev, state_id: stateId, lga_id: '', school_id: '' }));
-    fetchLgasByState(stateId);
   };
 
   const handleLgaChange = (e) => {
@@ -155,8 +165,7 @@ const RegisterStudent = () => {
     setFormData((prev) => ({ ...prev, lga_id: lgaId, school_id: '' }));
   };
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
+  const doSubmit = async () => {
     setLoading(true);
     setError('');
     try {
@@ -178,11 +187,13 @@ const RegisterStudent = () => {
       };
       const res = await createStudent(payload);
       const createdStudent = res.data?.data || res.data;
-      // Navigate to enrollments, pre-selecting the newly created student.
-      navigate('/enrollments', {
+      const enrollmentNo = createdStudent?.enrollment_no || '';
+      navigate('/add-enrollment', {
         state: {
           newStudentId: createdStudent?.id,
           newStudentName: `${createdStudent?.first_name || ''} ${createdStudent?.last_name || ''}`.trim(),
+          newStudentEnrollmentNo: enrollmentNo,
+          newStudentSchoolId: formData.school_id || '',
         },
       });
     } catch (err) {
@@ -190,6 +201,11 @@ const RegisterStudent = () => {
       setError(`Failed to register student (${err?.response?.status ?? 'network error'}): ${getErrorMessage(err, 'Unknown error')}`);
       setLoading(false);
     }
+  };
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    await doSubmit();
   };
 
   return (
@@ -243,17 +259,16 @@ const RegisterStudent = () => {
         </div>
 
         <div style={{ marginBottom: '15px' }}>
-          <label style={{ display: 'block', marginBottom: '5px', fontWeight: '500' }}>
-            Enrollment No
-            <span style={{ marginLeft: '8px', fontSize: '0.78rem', color: enrollmentNoPreview ? '#3e7430' : '#e07b00', fontWeight: '400' }}>
-              {enrollmentNoPreview ? '(auto-generated)' : '— select State & LGA to generate'}
+          <label style={{ display: 'block', marginBottom: '5px', fontWeight: '500' }}>Enrollment No
+            <span style={{ marginLeft: '8px', fontSize: '0.78rem', color: enrollmentNoPreview ? '#3e7430' : serialLoading ? '#e07b00' : '#e07b00', fontWeight: '400' }}>
+              {enrollmentNoPreview ? '(auto-generated)' : serialLoading ? 'generating…' : '— select School to generate'}
             </span>
           </label>
           <input type="text" value={enrollmentNoPreview} readOnly
             style={{
               width: '100%', padding: '10px', border: '1px solid var(--border)', borderRadius: '8px',
               background: enrollmentNoPreview ? '#f0f7ed' : 'var(--bg-light)',
-              color: enrollmentNoPreview ? '#3e7430' : '#aaa',
+              color: enrollmentNoPreview ? '#3e7430' : serialLoading ? '#e07b00' : '#aaa',
               fontWeight: enrollmentNoPreview ? '600' : '400',
               fontFamily: 'monospace', letterSpacing: '0.05em', cursor: 'default',
             }} placeholder="—" />
@@ -279,12 +294,6 @@ const RegisterStudent = () => {
         </div>
 
         <div style={{ marginBottom: '15px' }}>
-          <label style={{ display: 'block', marginBottom: '5px', fontWeight: '500' }}>Enrollment Year</label>
-          <input type="number" name="enrollment_year" value={formData.enrollment_year} onChange={handleChange} required
-            style={{ width: '100%', padding: '10px', border: '1px solid var(--border)', borderRadius: '8px', background: 'white' }} />
-        </div>
-
-        <div style={{ marginBottom: '15px' }}>
           <label style={{ display: 'block', marginBottom: '5px', fontWeight: '500' }}>Gender</label>
           <select name="gender" value={formData.gender} onChange={handleChange} required
             style={{ width: '100%', padding: '10px', border: '1px solid var(--border)', borderRadius: '8px', background: 'white' }}>
@@ -303,14 +312,24 @@ const RegisterStudent = () => {
 
         <div style={{ marginBottom: '15px' }}>
           <label style={{ display: 'block', marginBottom: '5px', fontWeight: '500' }}>State of Origin</label>
-          <input type="text" name="state_of_origin" value={formData.state_of_origin} onChange={handleChange}
-            style={{ width: '100%', padding: '10px', border: '1px solid var(--border)', borderRadius: '8px', background: 'white' }} />
+          <select name="state_of_origin" value={formData.state_of_origin} onChange={handleChange} required
+            style={{ width: '100%', padding: '10px', border: '1px solid var(--border)', borderRadius: '8px', background: 'white' }}>
+            <option value="">Select state of origin</option>
+            {states.map((state) => (
+              <option key={state.id} value={state.name}>{state.name}</option>
+            ))}
+          </select>
         </div>
 
         <div style={{ marginBottom: '15px' }}>
           <label style={{ display: 'block', marginBottom: '5px', fontWeight: '500' }}>Religion</label>
-          <input type="text" name="religion" value={formData.religion} onChange={handleChange}
-            style={{ width: '100%', padding: '10px', border: '1px solid var(--border)', borderRadius: '8px', background: 'white' }} />
+          <select name="religion" value={formData.religion} onChange={handleChange}
+            style={{ width: '100%', padding: '10px', border: '1px solid var(--border)', borderRadius: '8px', background: 'white' }}>
+            <option value="">Select religion</option>
+            {RELIGIONS.map((r) => (
+              <option key={r.value} value={r.value}>{r.label}</option>
+            ))}
+          </select>
         </div>
 
         <div style={{ marginBottom: '15px' }}>

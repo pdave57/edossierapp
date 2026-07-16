@@ -34,6 +34,7 @@ import Schools from './pages/schools';
 import SchoolFacility from './pages/SchoolFacility';
 import Students from './pages/Students';
 import Enrollments from './pages/Enrollments';
+import AddEnrollment from './pages/AddEnrollment';
 import RegisterStudent from './pages/RegisterStudent';
 
 // Shared navigation map: sidebar/item key -> route path.
@@ -53,7 +54,10 @@ const ROUTE_MAP = {
   subjects: "/subjects",
   facilities: "/facilities",
   students: "/students",
+  "student-management": "/students",
+  "register-student": "/register-student",
   enrollments: "/enrollments",
+  "add-enrollment": "/add-enrollment",
 };
 
 const PrivateRoute = ({ children }) => {
@@ -66,7 +70,7 @@ const PrivateRoute = ({ children }) => {
   return isAuthenticated ? children : <Navigate to="/login" replace />;
 };
 
-const ADMIN_ROUTES = ["/admindashboard", "/users", "/schools", "/roles", "/permissions", "/zones", "/lgas", "/academic-years", "/terms", "/levels", "/sublevels", "/subjects", "/facilities", "/students", "/register-student", "/enrollments"];
+const ADMIN_ROUTES = ["/admindashboard", "/users", "/schools", "/roles", "/permissions", "/zones", "/lgas", "/academic-years", "/terms", "/levels", "/sublevels", "/subjects", "/facilities", "/students", "/register-student", "/enrollments", "/add-enrollment"];
 
 function AdminDashboardRoute() {
   const navigate = useNavigate();
@@ -285,7 +289,7 @@ function StudentsRoute() {
 
   return (
     <PrivateRoute>
-      <AdminPageLayout activeKey="students" onNavigate={handleNavigate} permissions={null}>
+      <AdminPageLayout activeKey="student-management" onNavigate={handleNavigate} permissions={null}>
         <Students />
       </AdminPageLayout>
     </PrivateRoute>
@@ -317,8 +321,24 @@ function RegisterStudentRoute() {
 
   return (
     <PrivateRoute>
-      <AdminPageLayout activeKey="students" onNavigate={handleNavigate} permissions={null}>
+      <AdminPageLayout activeKey="register-student" onNavigate={handleNavigate} permissions={null}>
         <RegisterStudent />
+      </AdminPageLayout>
+    </PrivateRoute>
+  );
+}
+
+function AddEnrollmentRoute() {
+  const navigate = useNavigate();
+  const handleNavigate = (key) => {
+    const path = ROUTE_MAP[key];
+    if (path) navigate(path);
+  };
+
+  return (
+    <PrivateRoute>
+      <AdminPageLayout activeKey="add-enrollment" onNavigate={handleNavigate} permissions={null}>
+        <AddEnrollment />
       </AdminPageLayout>
     </PrivateRoute>
   );
@@ -363,6 +383,7 @@ function AppContent() {
         <Route path="/students" element={<StudentsRoute />} />
         <Route path="/register-student" element={<RegisterStudentRoute />} />
         <Route path="/enrollments" element={<EnrollmentsRoute />} />
+        <Route path="/add-enrollment" element={<AddEnrollmentRoute />} />
         <Route path="/admindashboard" element={<AdminDashboardRoute />} />
       </Routes>
 

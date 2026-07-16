@@ -276,8 +276,11 @@ const Zones = () => {
                         •••
                       </button>
                       {openDropdownId === zone.id && (
-                        <div style={{
-                          position: 'absolute',
+                         <div
+                           onMouseDown={(e) => e.stopPropagation()}
+                           onClick={(e) => e.stopPropagation()}
+                           style={{
+                           position: 'absolute',
                           right: '0',
                           top: '38px',
                           background: 'white',

@@ -221,7 +221,7 @@ const AcademicYears = () => {
                   <td style={{ padding: '15px' }}>{session.start_date ? new Date(session.start_date).toLocaleDateString() : '—'}</td>
                   <td style={{ padding: '15px' }}>{session.end_date ? new Date(session.end_date).toLocaleDateString() : '—'}</td>
                   <td style={{ padding: '15px', textAlign: 'center' }}>
-                    {session.is_active ? (
+                    {session.status === 'ACTIVE' ? (
                       <span style={{ background: '#d4edda', color: '#155724', padding: '4px 8px', borderRadius: '12px', fontSize: '0.85rem' }}>Active</span>
                     ) : (
                       <span style={{ background: '#e2e3e5', color: '#383d41', padding: '4px 8px', borderRadius: '12px', fontSize: '0.85rem' }}>Inactive</span>
@@ -238,8 +238,11 @@ const AcademicYears = () => {
                           •••
                         </button>
                       {openDropdownId === session.id && (
-                        <div style={{
-                          position: 'absolute',
+                         <div
+                           onMouseDown={(e) => e.stopPropagation()}
+                           onClick={(e) => e.stopPropagation()}
+                           style={{
+                           position: 'absolute',
                           right: '0',
                           top: '38px',
                           background: 'white',
@@ -261,7 +264,7 @@ const AcademicYears = () => {
                           >
                             Edit
                           </button>
-                          {!session.is_active && (
+                          {session.status !== 'ACTIVE' && (
                             <button
                               onClick={() => { setSelectedSession(session); handleActivateSession(); }}
                               style={{ display: 'block', width: '100%', padding: '10px 16px', border: 'none', background: 'transparent', cursor: 'pointer', textAlign: 'left', fontSize: '0.9rem', color: '#27ae60' }}

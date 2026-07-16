@@ -262,21 +262,6 @@ const Students = () => {
         >
           <h1 style={{ margin: 0 }}>Student Management</h1>
         </button>
-        <button
-          onClick={() => navigate('/register-student')}
-          style={{
-            padding: '10px 24px',
-            background: '#3e7430',
-            color: 'white',
-            border: 'none',
-            borderRadius: '50px',
-            cursor: 'pointer',
-            fontWeight: '600',
-            fontSize: '0.95rem'
-          }}
-        >
-          + Register Student
-        </button>
       </div>
 
       <AlertBox type="error" message={error} />
@@ -297,7 +282,7 @@ const Students = () => {
             {students.length === 0 ? (
               <tr>
                 <td colSpan="6" style={{ padding: '40px', textAlign: 'center', color: 'var(--gray)' }}>
-                  No students found. Click "+ Register Student" to create one.
+                  No students found.
                 </td>
               </tr>
             ) : (
@@ -317,17 +302,20 @@ const Students = () => {
                         •••
                       </button>
                       {openDropdownId === student.id && (
-                        <div style={{
-                          position: 'absolute',
-                          right: '0',
-                          top: '38px',
-                          background: 'white',
-                          border: '1px solid var(--border)',
-                          borderRadius: '8px',
-                          boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
-                          zIndex: 9999,
-                          minWidth: '140px'
-                        }}>
+                        <div
+                          onMouseDown={(e) => e.stopPropagation()}
+                          onClick={(e) => e.stopPropagation()}
+                          style={{
+                            position: 'absolute',
+                            right: '0',
+                            top: '38px',
+                            background: 'white',
+                            border: '1px solid var(--border)',
+                            borderRadius: '8px',
+                            boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
+                            zIndex: 9999,
+                            minWidth: '140px'
+                          }}>
                           <button
                             onClick={() => { setSelectedStudent(student); handleViewStudent(); }}
                             style={{ display: 'block', width: '100%', padding: '10px 16px', border: 'none', background: 'transparent', cursor: 'pointer', textAlign: 'left', fontSize: '0.9rem' }}

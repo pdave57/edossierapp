@@ -281,6 +281,7 @@ export const createStudent = (data) => api.post('/api/v1/students', data);
 export const getStudent = (id) => api.get(`/api/v1/students/${id}`);
 export const updateStudent = (id, data) => api.put(`/api/v1/students/${id}`, data);
 export const deleteStudent = (id) => api.delete(`/api/v1/students/${id}`);
+export const getNextStudentSerial = (schoolId, year) => api.get('/api/v1/students/next-serial', { params: { school_id: schoolId, year } });
 
 // --- Enrollments ---
 export const getEnrollments = (page = 1, limit = 10, params = {}) => api.get('/api/v1/enrollments', { params: { page, limit, ...params } });
