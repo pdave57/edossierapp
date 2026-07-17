@@ -36,6 +36,9 @@ import Students from './pages/Students';
 import Enrollments from './pages/Enrollments';
 import AddEnrollment from './pages/AddEnrollment';
 import RegisterStudent from './pages/RegisterStudent';
+import StudentDashboard from './pages/StudentDashboard';
+import StudentProfile from './pages/StudentProfile';
+import StudentLogin from './pages/StudentLogin';
 
 // Shared navigation map: sidebar/item key -> route path.
 const ROUTE_MAP = {
@@ -58,6 +61,8 @@ const ROUTE_MAP = {
   "register-student": "/register-student",
   enrollments: "/enrollments",
   "add-enrollment": "/add-enrollment",
+  "student-dashboard": "/student-dashboard",
+  "student-profile": "/student-profile",
 };
 
 const PrivateRoute = ({ children }) => {
@@ -70,7 +75,7 @@ const PrivateRoute = ({ children }) => {
   return isAuthenticated ? children : <Navigate to="/login" replace />;
 };
 
-const ADMIN_ROUTES = ["/admindashboard", "/users", "/schools", "/roles", "/permissions", "/zones", "/lgas", "/academic-years", "/terms", "/levels", "/sublevels", "/subjects", "/facilities", "/students", "/register-student", "/enrollments", "/add-enrollment"];
+const ADMIN_ROUTES = ["/admindashboard", "/users", "/schools", "/roles", "/permissions", "/zones", "/lgas", "/academic-years", "/terms", "/levels", "/sublevels", "/subjects", "/facilities", "/students", "/register-student", "/enrollments", "/add-enrollment", "/student-dashboard", "/student-profile"];
 
 function AdminDashboardRoute() {
   const navigate = useNavigate();
@@ -344,6 +349,38 @@ function AddEnrollmentRoute() {
   );
 }
 
+function StudentDashboardRoute() {
+  const navigate = useNavigate();
+  const handleNavigate = (key) => {
+    const path = ROUTE_MAP[key];
+    if (path) navigate(path);
+  };
+
+  return (
+    <PrivateRoute>
+      <AdminPageLayout activeKey="student-dashboard" onNavigate={handleNavigate} permissions={null}>
+        <StudentDashboard />
+      </AdminPageLayout>
+    </PrivateRoute>
+  );
+}
+
+function StudentProfileRoute() {
+  const navigate = useNavigate();
+  const handleNavigate = (key) => {
+    const path = ROUTE_MAP[key];
+    if (path) navigate(path);
+  };
+
+  return (
+    <PrivateRoute>
+      <AdminPageLayout activeKey="student-profile" onNavigate={handleNavigate} permissions={null}>
+        <StudentProfile />
+      </AdminPageLayout>
+    </PrivateRoute>
+  );
+}
+
 function AppContent() {
   const location = useLocation();
   const isAdminRoute = ADMIN_ROUTES.some((r) => location.pathname.startsWith(r));
@@ -364,8 +401,9 @@ function AppContent() {
             <QuickLinks />
           </>
         } />
-<Route path="/register" element={<Register />} />
         <Route path="/login" element={<Login />} />
+        <Route path="/student-login" element={<StudentLogin />} />
+        <Route path="/register" element={<Register />} />
         <Route path="/About" element={<About />} />
 
         <Route path="/users" element={<UsersRoute />} />
@@ -384,6 +422,8 @@ function AppContent() {
         <Route path="/register-student" element={<RegisterStudentRoute />} />
         <Route path="/enrollments" element={<EnrollmentsRoute />} />
         <Route path="/add-enrollment" element={<AddEnrollmentRoute />} />
+        <Route path="/student-dashboard" element={<StudentDashboardRoute />} />
+        <Route path="/student-profile" element={<StudentProfileRoute />} />
         <Route path="/admindashboard" element={<AdminDashboardRoute />} />
       </Routes>
 

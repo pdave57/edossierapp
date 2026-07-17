@@ -58,9 +58,9 @@ const Login = () => {
       <div className="auth-layout">
         <div className="auth-left">
           <div className="al-top">
-            <div className="al-crest">
+            {/* <div className="al-crest">
               <img src="/images/logomoe.jpg" height="70px" width="70px" alt="State Ministry of Education"/>
-            </div>
+            </div> */}
             <h2>State Ministry of Education<br />Portal Login</h2>
             <p>Access your official account to manage school records, personnel, and ministry resources.</p>
           </div>

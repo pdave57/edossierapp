@@ -38,6 +38,8 @@ const Students = () => {
   const dropdownRef = useRef(null);
   const [currentPage, setCurrentPage] = useState(1);
   const rowsPerPage = 10;
+  const [showProfileModal, setShowProfileModal] = useState(false);
+  const [profileStudent, setProfileStudent] = useState(null);
 
   const [schools, setSchools] = useState([]);
   const [states, setStates] = useState([]);
@@ -317,10 +319,10 @@ const Students = () => {
                             minWidth: '140px'
                           }}>
                           <button
-                            onClick={() => { setSelectedStudent(student); handleViewStudent(); }}
+                            onClick={() => { setProfileStudent(student); setShowProfileModal(true); }}
                             style={{ display: 'block', width: '100%', padding: '10px 16px', border: 'none', background: 'transparent', cursor: 'pointer', textAlign: 'left', fontSize: '0.9rem' }}
                           >
-                            View
+                            View Profile
                           </button>
                           <button
                             onClick={() => openModal('edit', student)}
@@ -630,6 +632,123 @@ const Students = () => {
                 </div>
               </form>
             )}
+          </div>
+        </div>
+      )}
+      
+      {showProfileModal && profileStudent && (
+        <div
+          style={{
+            position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
+            background: 'rgba(0,0,0,0.5)', display: 'flex',
+            justifyContent: 'center', alignItems: 'flex-start', zIndex: 1000,
+            padding: '30px', overflowY: 'auto',
+          }}
+          onClick={(e) => { if (e.target === e.currentTarget) setShowProfileModal(false); }}
+        >
+          <style>{`
+            @media print {
+              body * { visibility: hidden !important; }
+              .student-profile-sheet, .student-profile-sheet * { visibility: visible !important; }
+              .student-profile-sheet {
+                position: absolute !important; left: 0; top: 0; margin: 0 !important;
+                box-shadow: none !important; border: none !important;
+              }
+              .student-profile-no-print { display: none !important; }
+              @page { size: A4; margin: 0; }
+            }
+          `}</style>
+
+          <div
+            className="student-profile-sheet"
+            style={{
+              background: 'white', width: '210mm', minHeight: '297mm',
+              padding: '18mm 16mm', boxSizing: 'border-box',
+              boxShadow: '0 4px 20px rgba(0,0,0,0.3)', fontFamily: 'inherit', color: '#1a1a1a',
+            }}
+          >
+            {(() => {
+              const stu = profileStudent || {};
+              const fullName = `${stu.last_name || ''}${stu.first_name ? ', ' + stu.first_name : ''}${stu.middle_name ? ' ' + stu.middle_name : ''}`.trim() || '—';
+              const dob = stu.date_of_birth ? String(stu.date_of_birth).slice(0, 10) : '—';
+              const sectionTitle = {
+                fontFamily: 'Source Serif Pro, Georgia, serif',
+                fontSize: '13px', letterSpacing: '0.08em', textTransform: 'uppercase',
+                color: '#3e7430', borderBottom: '2px solid #3e7430', paddingBottom: '4px',
+                margin: '0 0 12px',
+              };
+              const fieldLabel = { fontSize: '10px', textTransform: 'uppercase', letterSpacing: '0.05em', color: '#888', marginBottom: '2px' };
+              const fieldValue = { fontSize: '13px', color: '#1a1a1a', marginBottom: '10px' };
+              const cell = (label, value) => (
+                <div>
+                  <div style={fieldLabel}>{label}</div>
+                  <div style={fieldValue}>{value || '—'}</div>
+                </div>
+              );
+              return (
+                <>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', borderBottom: '3px solid #3e7430', paddingBottom: '12px', marginBottom: '18px' }}>
+                    <div>
+                      <div style={{ fontSize: '22px', fontWeight: '700', fontFamily: 'Source Serif Pro, Georgia, serif' }}>e-Dossier</div>
+                      <div style={{ fontSize: '12px', color: '#555' }}>Student Profile</div>
+                    </div>
+                    <div style={{ textAlign: 'right' }}>
+                      <div style={{ fontSize: '10px', textTransform: 'uppercase', letterSpacing: '0.05em', color: '#888' }}>Enrollment No</div>
+                      <div style={{ fontSize: '18px', fontWeight: '700', color: '#3e7430' }}>{stu.enrollment_no || '—'}</div>
+                    </div>
+                  </div>
+
+                  <div style={{ fontSize: '24px', fontWeight: '700', fontFamily: 'Source Serif Pro, Georgia, serif', marginBottom: '4px' }}>{fullName}</div>
+                  <div style={{ fontSize: '12px', color: '#666', marginBottom: '20px' }}>{stu.status || '—'}</div>
+
+                  <h3 style={sectionTitle}>Bio Data</h3>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0 24px', marginBottom: '22px' }}>
+                    {cell('Gender', stu.gender)}
+                    {cell('Date of Birth', dob)}
+                    {cell('State of Origin', stu.state_of_origin)}
+                    {cell('Religion', stu.religion)}
+                    {cell('Address', stu.address)}
+                    {cell('Guardian Name', stu.guardian_name)}
+                    {cell('Guardian Phone', stu.guardian_phone)}
+                    {cell('Guardian Relation', stu.guardian_relation)}
+                  </div>
+
+                  <h3 style={sectionTitle}>School &amp; Enrollment Data</h3>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0 24px', marginBottom: '22px' }}>
+                    {cell('School', getSchoolName(stu.school_id))}
+                    {cell('Enrollment Year', stu.enrollment_year)}
+                    {cell('Enrollment Status', stu.status)}
+                  </div>
+
+                  <h3 style={sectionTitle}>Academic Summary</h3>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0 24px', marginBottom: '22px' }}>
+                    {cell('Student ID', stu.id)}
+                    {cell('State ID', stu.state_id)}
+                  </div>
+
+                  <div style={{ marginTop: '40px', borderTop: '1px solid #ccc', paddingTop: '10px', fontSize: '10px', color: '#999' }}>
+                    Generated by e-Dossier • {new Date().toLocaleDateString()}
+                  </div>
+                </>
+              );
+            })()}
+          </div>
+
+          <div className="student-profile-no-print" style={{ position: 'fixed', bottom: '24px', right: '24px', display: 'flex', gap: '10px', zIndex: 1001 }}>
+            <button
+              type="button"
+              onClick={() => window.print()}
+              style={{ padding: '12px 22px', background: '#3e7430', color: 'white', border: 'none', borderRadius: '8px', cursor: 'pointer', fontWeight: '600' }}
+            >
+              Print / Download PDF
+            </button>
+            <button
+              type="button"
+              onClick={() => setShowProfileModal(false)}
+              style={{ padding: '12px 22px', background: 'white', border: '1px solid var(--border)', borderRadius: '8px', cursor: 'pointer' }}
+            >
+              Close
+            </button>
           </div>
         </div>
       )}

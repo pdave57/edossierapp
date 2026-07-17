@@ -21,7 +21,7 @@ function Hero() {
         </p>
 
         <div className="hero-btns">
-          <a href="#" className="btn-green">
+          <a href="/student-login" className="btn-green">
             Student Login →
           </a>
 

@@ -13,13 +13,20 @@ const PUBLIC_AUTH_PATHS = [
   '/api/v1/auth/login',
   '/api/v1/auth/register',
   '/api/v1/auth/refresh',
+  '/api/v1/auth/student-login',
 ];
+
+const isPublicAuthPath = (url) => {
+  if (!url) return false;
+  const path = url.split('?')[0];
+  return PUBLIC_AUTH_PATHS.some((p) => path === p || path.endsWith(p));
+};
 
 // Request interceptor to attach JWT token to protected routes
 api.interceptors.request.use(
   (config) => {
     const requestPath = config.url || '';
-    const isPublicAuthRequest = PUBLIC_AUTH_PATHS.some((path) => requestPath.endsWith(path));
+    const isPublicAuthRequest = isPublicAuthPath(requestPath);
 
     if (isPublicAuthRequest) {
       delete config.headers.Authorization;
@@ -67,16 +74,19 @@ api.interceptors.response.use(
     };
 
     // Only attempt refresh on 401, and only for non-public, non-refresh endpoints
+    const isPublicAuthRequest = isPublicAuthPath(originalRequest.url);
     if (
       error.response?.status !== 401 ||
       originalRequest._retry ||
-      PUBLIC_AUTH_PATHS.some((path) => originalRequest.url?.endsWith('/api/v1/auth/refresh'))
+      isPublicAuthRequest
     ) {
-      // If it's a non-retried 401 on a protected route (not refresh endpoint),
+      // If it's a non-retried 401 on a protected route (not public auth),
       // it means the token is gone/invalid — clear auth state
-      if (error.response?.status === 401 && !originalRequest._retry) {
+      if (error.response?.status === 401 && !originalRequest._retry && !isPublicAuthRequest) {
         localStorage.removeItem('access_token');
         localStorage.removeItem('refresh_token');
+        localStorage.removeItem('student_session');
+        localStorage.removeItem('student_info');
         delete api.defaults.headers.common['Authorization'];
         if (!window.location.pathname.includes('/login')) {
           window.location.href = '/login';
@@ -143,6 +153,7 @@ export const refreshToken = () => api.post('/api/v1/auth/refresh');
 export const getMe = () => api.get('/api/v1/auth/me');
 export const logoutUser = () => api.post('/api/v1/auth/logout');
 export const changePassword = (data) => api.post('/api/v1/auth/change-password', data);
+export const studentLogin = (data) => api.post('/api/v1/auth/student-login', data);
 
 // --- Users ---
 export const getUsers = () => api.get('/api/v1/users');

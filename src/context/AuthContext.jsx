@@ -1,5 +1,5 @@
 import React, { createContext, useState, useContext, useEffect, useCallback } from 'react';
-import { loginUser, registerUser, logoutUser, getMe } from '../api/client';
+import { loginUser, registerUser, logoutUser, getMe, studentLogin } from '../api/client';
 
 const AuthContext = createContext(null);
 
@@ -8,20 +8,35 @@ export const AuthProvider = ({ children }) => {
   const [token, setToken] = useState(localStorage.getItem('access_token'));
   const [loading, setLoading] = useState(true);
 
-  // Fetch authenticated user details if a token exists
   const fetchUser = useCallback(async () => {
     if (!token) {
       setLoading(false);
       return;
     }
+    
+    const isStudentSession = localStorage.getItem('student_session') === 'true';
+    if (isStudentSession) {
+      const studentInfo = localStorage.getItem('student_info');
+      if (studentInfo) {
+        try {
+          setUser(JSON.parse(studentInfo));
+        } catch {
+          setUser(null);
+        }
+      }
+      setLoading(false);
+      return;
+    }
+    
     try {
       const response = await getMe();
       setUser(response.data);
     } catch (error) {
       console.error('Failed to fetch user session:', error);
-      // Clear invalid token if the API rejects it
       localStorage.removeItem('access_token');
       localStorage.removeItem('refresh_token');
+      localStorage.removeItem('student_session');
+      localStorage.removeItem('student_info');
       setToken(null);
       setUser(null);
     } finally {
@@ -43,7 +58,19 @@ export const AuthProvider = ({ children }) => {
       localStorage.setItem('refresh_token', refresh_token);
     }
     setToken(access_token);
-    // The useEffect will automatically trigger fetchUser() due to token change
+    return authData;
+  };
+
+  const studentLoginFn = async (credentials) => {
+    const response = await studentLogin(credentials);
+    const authData = response.data?.data || response.data;
+    const { access_token, refresh_token } = authData;
+    
+    localStorage.setItem('access_token', access_token);
+    if (refresh_token) {
+      localStorage.setItem('refresh_token', refresh_token);
+    }
+    setToken(access_token);
     return authData;
   };
 
@@ -54,12 +81,14 @@ export const AuthProvider = ({ children }) => {
 
   const logout = async () => {
     try {
-      await logoutUser(); // Invalidate token on the backend
+      await logoutUser();
     } catch (error) {
       console.error('Logout error:', error);
     } finally {
       localStorage.removeItem('access_token');
       localStorage.removeItem('refresh_token');
+      localStorage.removeItem('student_session');
+      localStorage.removeItem('student_info');
       setToken(null);
       setUser(null);
     }
@@ -70,6 +99,7 @@ export const AuthProvider = ({ children }) => {
     token,
     loading,
     login,
+    studentLogin: studentLoginFn,
     register,
     logout,
     isAuthenticated: !!token && !!user,
@@ -78,7 +108,6 @@ export const AuthProvider = ({ children }) => {
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 };
 
-// Custom hook to easily consume the AuthContext
 export const useAuth = () => {
   const context = useContext(AuthContext);
   if (!context) {

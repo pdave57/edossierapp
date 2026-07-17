@@ -115,6 +115,8 @@ const NAV_GROUPS = [
     items: [
       { key: "register-student", label: "Register Student", icon: UserPlus },
       { key: "add-enrollment", label: "Add Enrollment", icon: UserPlus },
+      { key: "student-dashboard", label: "Student Dashboard", icon: GraduationCap },
+      { key: "student-profile", label: "Student Profile", icon: GraduationCap },
       { key: "student-management", label: "Students", icon: GraduationCap },      
     ],
   },
