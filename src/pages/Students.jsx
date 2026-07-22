@@ -35,15 +35,12 @@ const Students = () => {
   const [showModal, setShowModal] = useState(false);
   const [selectedStudent, setSelectedStudent] = useState(null);
   const [openDropdownId, setOpenDropdownId] = useState(null);
-  const dropdownRef = useRef(null);
   const [currentPage, setCurrentPage] = useState(1);
   const rowsPerPage = 10;
   const [showProfileModal, setShowProfileModal] = useState(false);
   const [profileStudent, setProfileStudent] = useState(null);
 
   const [schools, setSchools] = useState([]);
-  const [states, setStates] = useState([]);
-  const [lgas, setLgas] = useState([]);
 
   const [formData, setFormData] = useState({
     state_id: '',
@@ -63,6 +60,10 @@ const Students = () => {
     status: 'ACTIVE',
   });
 
+  const [searchQuery, setSearchQuery] = useState('');
+  const [filterSchoolId, setFilterSchoolId] = useState('');
+  const [allStudents, setAllStudents] = useState([]);
+
   const fetchSchools = useCallback(async () => {
     try {
       const res = await getSchools();
@@ -73,38 +74,17 @@ const Students = () => {
     }
   }, []);
 
-  const fetchStates = useCallback(async () => {
-    try {
-      const res = await getStates();
-      const list = Array.isArray(res.data) ? res.data : (res.data?.states ?? res.data?.data ?? []);
-      setStates(list);
-    } catch (err) {
-      console.error('States fetch error:', err);
-    }
-  }, []);
-
-  const fetchLgasByState = useCallback(async (stateId) => {
-    if (!stateId) {
-      setLgas([]);
-      return;
-    }
-    try {
-      const res = await getStatelgas(stateId);
-      const list = Array.isArray(res.data) ? res.data : (res.data?.lgas ?? res.data?.data ?? []);
-      setLgas(list);
-    } catch (err) {
-      console.error('LGAs fetch error:', err);
-      setLgas([]);
-    }
-  }, []);
-
   const fetchStudents = useCallback(async () => {
     try {
       setLoading(true);
       setError('');
-      const res = await getStudents();
+      const params = {};
+      if (filterSchoolId) {
+        params.school_id = filterSchoolId;
+      }
+      const res = await getStudents(1, 1000, params);
       const list = Array.isArray(res.data) ? res.data : (res.data?.students ?? res.data?.data ?? []);
-      setStudents(list);
+      setAllStudents(list);
     } catch (err) {
       console.error('Students fetch error:', err);
       const status = err?.response?.status;
@@ -113,27 +93,36 @@ const Students = () => {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [filterSchoolId]);
 
   useEffect(() => {
     fetchStudents();
     fetchSchools();
-    fetchStates();
-  }, [fetchStudents, fetchSchools, fetchStates]);
+  }, [fetchStudents, fetchSchools]);
 
   useEffect(() => {
-    fetchLgasByState(formData.state_id);
-  }, [formData.state_id, fetchLgasByState]);
+    if (!allStudents.length) return;
+    const q = searchQuery.trim().toLowerCase();
+    const filtered = allStudents.filter((s) => {
+      const matchesName = !q || [
+        s.first_name, s.middle_name, s.last_name, s.enrollment_no,
+      ].some((val) => String(val || '').toLowerCase().includes(q));
+      const matchesSchool = !filterSchoolId || s.school_id === filterSchoolId;
+      return matchesName && matchesSchool;
+    });
+    setStudents(filtered);
+    setCurrentPage(1);
+  }, [allStudents, searchQuery, filterSchoolId]);
 
   useEffect(() => {
-    const handleClickOutside = (event) => {
-      if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
-        setOpenDropdownId(null);
-      }
+    if (!openDropdownId) return;
+    const handleClick = (e) => {
+      if (e.target.closest('.student-action-menu')) return;
+      setOpenDropdownId(null);
     };
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, []);
+    document.addEventListener('mousedown', handleClick);
+    return () => document.removeEventListener('mousedown', handleClick);
+  }, [openDropdownId]);
 
   const openModal = (mode, student = null) => {
     setModalMode(mode);
@@ -268,6 +257,32 @@ const Students = () => {
 
       <AlertBox type="error" message={error} />
 
+      <div style={{ background: 'white', padding: '20px', borderRadius: '12px', boxShadow: '0 2px 8px rgba(0,0,0,0.1)', marginBottom: '20px', display: 'flex', gap: '15px', flexWrap: 'wrap', alignItems: 'flex-end' }}>
+        <div style={{ flex: '1 1 240px', minWidth: '200px' }}>
+          <label style={{ display: 'block', marginBottom: '5px', fontWeight: '500', fontSize: '0.9rem' }}>Search Name</label>
+          <input
+            type="text"
+            placeholder="Search by student name..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            style={{ width: '100%', padding: '10px 12px', border: '1px solid var(--border)', borderRadius: '8px', background: 'white', fontSize: '0.95rem' }}
+          />
+        </div>
+        <div style={{ flex: '1 1 260px', minWidth: '200px' }}>
+          <label style={{ display: 'block', marginBottom: '5px', fontWeight: '500', fontSize: '0.9rem' }}>School</label>
+          <select
+            value={filterSchoolId}
+            onChange={(e) => setFilterSchoolId(e.target.value)}
+            style={{ width: '100%', padding: '10px 12px', border: '1px solid var(--border)', borderRadius: '8px', background: 'white', fontSize: '0.95rem' }}
+          >
+            <option value="">All Schools</option>
+            {schools.map((school) => (
+              <option key={school.id} value={school.id}>{school.name}</option>
+            ))}
+          </select>
+        </div>
+      </div>
+
       <div style={{ background: 'white', borderRadius: '12px', boxShadow: '0 2px 8px rgba(0,0,0,0.1)' }}>
         <table style={{ width: '100%', borderCollapse: 'collapse' }}>
           <thead>
@@ -307,6 +322,7 @@ const Students = () => {
                         <div
                           onMouseDown={(e) => e.stopPropagation()}
                           onClick={(e) => e.stopPropagation()}
+                          className="student-action-menu"
                           style={{
                             position: 'absolute',
                             right: '0',
@@ -319,19 +335,19 @@ const Students = () => {
                             minWidth: '140px'
                           }}>
                           <button
-                            onClick={() => { setProfileStudent(student); setShowProfileModal(true); }}
+                            onClick={() => { setOpenDropdownId(null); setProfileStudent(student); setShowProfileModal(true); }}
                             style={{ display: 'block', width: '100%', padding: '10px 16px', border: 'none', background: 'transparent', cursor: 'pointer', textAlign: 'left', fontSize: '0.9rem' }}
                           >
                             View Profile
                           </button>
                           <button
-                            onClick={() => openModal('edit', student)}
+                            onClick={() => navigate(`/register-student/${student.id}`)}
                             style={{ display: 'block', width: '100%', padding: '10px 16px', border: 'none', background: 'transparent', cursor: 'pointer', textAlign: 'left', fontSize: '0.9rem' }}
                           >
                             Edit
                           </button>
                           <button
-                            onClick={() => { setSelectedStudent(student); handleDeleteStudent(); }}
+                            onClick={() => { setOpenDropdownId(null); setSelectedStudent(student); handleDeleteStudent(); }}
                             style={{ display: 'block', width: '100%', padding: '10px 16px', border: 'none', background: 'transparent', cursor: 'pointer', textAlign: 'left', fontSize: '0.9rem', color: '#e74c3c' }}
                           >
                             Delete
@@ -703,8 +719,7 @@ const Students = () => {
 
                   <h3 style={sectionTitle}>Bio Data</h3>
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0 24px', marginBottom: '22px' }}>
-                    {cell('Gender', stu.gender)}
-                    {cell('Date of Birth', dob)}
+                      {cell('Date of Birth', dob)}
                     {cell('State of Origin', stu.state_of_origin)}
                     {cell('Religion', stu.religion)}
                     {cell('Address', stu.address)}

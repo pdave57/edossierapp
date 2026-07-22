@@ -149,7 +149,7 @@ const AddEnrollment = () => {
   const handleCloseProfile = () => {
     setShowProfileModal(false);
     setSubmitting(false);
-    navigate('/enrollments');
+    navigate('/students');
   };
 
   if (!newStudentId) {
@@ -317,8 +317,8 @@ const AddEnrollment = () => {
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0 24px', marginBottom: '22px' }}>
                     {cell('Gender', stu.gender)}
                     {cell('Date of Birth', dob)}
-                    {cell('State', stu.state?.name || '—')}
-                    {cell('LGA', stu.lga?.name || '—')}
+                    {/* {cell('State', stu.state?.name || '—')}
+                    {cell('LGA', stu.lga?.name || '—')} */}
                     {cell('State of Origin', stu.state_of_origin?.name || '—')}
                     {cell('Religion', stu.religion)}
                     {cell('Address', stu.address)}

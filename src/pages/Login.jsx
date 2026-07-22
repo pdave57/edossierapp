@@ -56,23 +56,25 @@ const Login = () => {
   return (
     <>
       <div className="auth-layout">
+        {/*  LEFT PANEL  */}
         <div className="auth-left">
           <div className="al-top">
-            {/* <div className="al-crest">
-              <img src="/images/logomoe.jpg" height="70px" width="70px" alt="State Ministry of Education"/>
-            </div> */}
-            <h2>State Ministry of Education<br />Portal Login</h2>
-            <p>Access your official account to manage school records, personnel, and ministry resources.</p>
+            <div className="al-crest" id="left-crest"></div>
+            <h2>State Ministry of Education<br />Portal</h2>
+            <p>Secure access to all integrated education management platforms for authorised ministry personnel.</p>
           </div>
           <div className="al-mid">
-            <h3>Welcome Back<br /><span className="hl">Sign In.</span></h3>
-            <p>Enter your official credentials to access the integrated education management system.</p>
-            <div className="features">
-              <div className="feature-item">📊 School Census</div>
-              <div className="feature-item">👥 Personnel Management</div>
-              <div className="feature-item">📋 E-Dossier</div>
+            <h3>Welcome<br /><span className="hl">Back.</span></h3>
+            <p>Sign in to manage personnel records, enroll school census data, access your e-dossier, and view the state education analytics dashboard.</p>
+            <div className="feat-list">
+              <div className="feat"><div className="feat-dot"></div>E-Dossier Management System</div>
+              <div className="feat"><div className="feat-dot"></div>School Census Portal</div>
+              <div className="feat"><div className="feat-dot"></div>Personnel Management System</div>
+              <div className="feat"><div className="feat-dot"></div>Real-Time Analytics Dashboard</div>
+              <div className="feat"><div className="feat-dot"></div>Ministry Circulars &amp; Directives</div>
             </div>
           </div>
+          <div className="al-foot">Authorised Users Only — Unauthorised access is a criminal offence under the Cybercrimes (Prohibition, Prevention, etc.) Act 2015.</div>
         </div>
 
         <div className="auth-right">

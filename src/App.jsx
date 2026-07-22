@@ -39,6 +39,12 @@ import RegisterStudent from './pages/RegisterStudent';
 import StudentDashboard from './pages/StudentDashboard';
 import StudentProfile from './pages/StudentProfile';
 import StudentLogin from './pages/StudentLogin';
+import Personnel from './pages/Personnel';
+import AddPersonnel from './pages/AddPersonnel';
+import PersonnelAvatar from './pages/PersonnelAvatar';
+import ScoreConfig from './pages/ScoreConfig';
+import GradeConfig from './pages/GradeConfig';
+import ScoreSheet from './pages/ScoreSheet';
 
 // Shared navigation map: sidebar/item key -> route path.
 const ROUTE_MAP = {
@@ -63,6 +69,10 @@ const ROUTE_MAP = {
   "add-enrollment": "/add-enrollment",
   "student-dashboard": "/student-dashboard",
   "student-profile": "/student-profile",
+  personnel: "/personnel",
+  "score-config": "/score-config",
+  "grade-config": "/grade-config",
+  "score-sheet": "/score-sheet",
 };
 
 const PrivateRoute = ({ children }) => {
@@ -75,7 +85,7 @@ const PrivateRoute = ({ children }) => {
   return isAuthenticated ? children : <Navigate to="/login" replace />;
 };
 
-const ADMIN_ROUTES = ["/admindashboard", "/users", "/schools", "/roles", "/permissions", "/zones", "/lgas", "/academic-years", "/terms", "/levels", "/sublevels", "/subjects", "/facilities", "/students", "/register-student", "/enrollments", "/add-enrollment", "/student-dashboard", "/student-profile"];
+const ADMIN_ROUTES = ["/admindashboard", "/users", "/schools", "/roles", "/permissions", "/zones", "/lgas", "/academic-years", "/terms", "/levels", "/sublevels", "/subjects", "/facilities", "/students", "/register-student", "/enrollments", "/add-enrollment", "/student-dashboard", "/student-profile", "/personnel", "/add-personnel", "/score-config", "/grade-config", "/score-sheet"];
 
 function AdminDashboardRoute() {
   const navigate = useNavigate();
@@ -381,6 +391,102 @@ function StudentProfileRoute() {
   );
 }
 
+function PersonnelRoute() {
+  const navigate = useNavigate();
+  const handleNavigate = (key) => {
+    const path = ROUTE_MAP[key];
+    if (path) navigate(path);
+  };
+
+  return (
+    <PrivateRoute>
+      <AdminPageLayout activeKey="personnel" onNavigate={handleNavigate} permissions={null}>
+        <Personnel />
+      </AdminPageLayout>
+    </PrivateRoute>
+  );
+}
+
+function AddPersonnelRoute() {
+  const navigate = useNavigate();
+  const handleNavigate = (key) => {
+    const path = ROUTE_MAP[key];
+    if (path) navigate(path);
+  };
+
+  return (
+    <PrivateRoute>
+      <AdminPageLayout activeKey="personnel" onNavigate={handleNavigate} permissions={null}>
+        <AddPersonnel />
+      </AdminPageLayout>
+    </PrivateRoute>
+  );
+}
+
+function PersonnelAvatarRoute() {
+  const navigate = useNavigate();
+  const handleNavigate = (key) => {
+    const path = ROUTE_MAP[key];
+    if (path) navigate(path);
+  };
+
+  return (
+    <PrivateRoute>
+      <AdminPageLayout activeKey="personnel" onNavigate={handleNavigate} permissions={null}>
+        <PersonnelAvatar />
+      </AdminPageLayout>
+    </PrivateRoute>
+  );
+}
+
+function ScoreConfigRoute() {
+  const navigate = useNavigate();
+  const handleNavigate = (key) => {
+    const path = ROUTE_MAP[key];
+    if (path) navigate(path);
+  };
+
+  return (
+    <PrivateRoute>
+      <AdminPageLayout activeKey="exams" onNavigate={handleNavigate} permissions={null}>
+        <ScoreConfig />
+      </AdminPageLayout>
+    </PrivateRoute>
+  );
+}
+
+function GradeConfigRoute() {
+  const navigate = useNavigate();
+  const handleNavigate = (key) => {
+    const path = ROUTE_MAP[key];
+    if (path) navigate(path);
+  };
+
+  return (
+    <PrivateRoute>
+      <AdminPageLayout activeKey="exams" onNavigate={handleNavigate} permissions={null}>
+        <GradeConfig />
+      </AdminPageLayout>
+    </PrivateRoute>
+  );
+}
+
+function ScoreSheetRoute() {
+  const navigate = useNavigate();
+  const handleNavigate = (key) => {
+    const path = ROUTE_MAP[key];
+    if (path) navigate(path);
+  };
+
+  return (
+    <PrivateRoute>
+      <AdminPageLayout activeKey="exams" onNavigate={handleNavigate} permissions={null}>
+        <ScoreSheet />
+      </AdminPageLayout>
+    </PrivateRoute>
+  );
+}
+
 function AppContent() {
   const location = useLocation();
   const isAdminRoute = ADMIN_ROUTES.some((r) => location.pathname.startsWith(r));
@@ -420,10 +526,17 @@ function AppContent() {
         <Route path="/facilities" element={<FacilitiesRoute />} />
         <Route path="/students" element={<StudentsRoute />} />
         <Route path="/register-student" element={<RegisterStudentRoute />} />
+        <Route path="/register-student/:id" element={<RegisterStudentRoute />} />
         <Route path="/enrollments" element={<EnrollmentsRoute />} />
         <Route path="/add-enrollment" element={<AddEnrollmentRoute />} />
         <Route path="/student-dashboard" element={<StudentDashboardRoute />} />
         <Route path="/student-profile" element={<StudentProfileRoute />} />
+        <Route path="/personnel" element={<PersonnelRoute />} />
+        <Route path="/add-personnel" element={<AddPersonnelRoute />} />
+        <Route path="/personnel/:id/avatar" element={<PersonnelAvatarRoute />} />
+        <Route path="/score-config" element={<ScoreConfigRoute />} />
+        <Route path="/grade-config" element={<GradeConfigRoute />} />
+        <Route path="/score-sheet" element={<ScoreSheetRoute />} />
         <Route path="/admindashboard" element={<AdminDashboardRoute />} />
       </Routes>
 

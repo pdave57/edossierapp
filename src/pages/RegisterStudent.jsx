@@ -1,13 +1,15 @@
 import { useState, useEffect, useCallback } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router-dom';
 import AlertBox from '../components/common/AlertBox';
 import {
   createStudent,
+  updateStudent,
   getSchools,
   getStates,
   getStatelgas,
   getStudents,
   getNextStudentSerial,
+  getStudent,
   getErrorMessage,
 } from '../api/client';
 
@@ -26,7 +28,10 @@ const RELIGIONS = [
 
 const RegisterStudent = () => {
   const navigate = useNavigate();
+  const { id } = useParams();
+  const isEditMode = Boolean(id);
   const [loading, setLoading] = useState(false);
+  const [initialLoading, setInitialLoading] = useState(isEditMode);
   const [error, setError] = useState('');
 
   const [schools, setSchools] = useState([]);
@@ -150,6 +155,48 @@ const RegisterStudent = () => {
     fetchNextSerial(formData.school_id, formData.enrollment_year);
   }, [formData.school_id, formData.enrollment_year, fetchNextSerial]);
 
+  useEffect(() => {
+    if (!isEditMode || !id) return;
+    let cancelled = false;
+    const fetchStudent = async () => {
+      try {
+        const res = await getStudent(id);
+        const data = res.data?.data || res.data;
+        if (data && !cancelled) {
+          setFormData({
+            school_id: data.school_id || '',
+            state_id: data.state_id || '',
+            lga_id: data.lga_id || '',
+            enrollment_year: data.enrollment_year ?? new Date().getFullYear(),
+            first_name: data.first_name || '',
+            middle_name: data.middle_name || '',
+            last_name: data.last_name || '',
+            gender: data.gender || '',
+            date_of_birth: data.date_of_birth ? String(data.date_of_birth).slice(0, 10) : '',
+            state_of_origin: data.state_of_origin || '',
+            religion: data.religion || '',
+            address: data.address || '',
+            guardian_name: data.guardian_name || '',
+            guardian_phone: data.guardian_phone || '',
+            guardian_relation: data.guardian_relation || '',
+          });
+          if (data.state_id) {
+            fetchLgasByState(data.state_id);
+          }
+        }
+      } catch (err) {
+        if (!cancelled) {
+          console.error('Fetch student error:', err);
+          setError(`Failed to load student (${err?.response?.status ?? 'network error'}): ${getErrorMessage(err, 'Unknown error')}`);
+        }
+      } finally {
+        if (!cancelled) setInitialLoading(false);
+      }
+    };
+    fetchStudent();
+    return () => { cancelled = true; };
+  }, [isEditMode, id]);
+
   const handleChange = (e) => {
     const { name, value } = e.target;
     setFormData((prev) => ({ ...prev, [name]: value }));
@@ -169,9 +216,7 @@ const RegisterStudent = () => {
     setLoading(true);
     setError('');
     try {
-      const payload = {
-        school_id: formData.school_id,
-        enrollment_year: formData.enrollment_year ? Number(formData.enrollment_year) : undefined,
+      const basePayload = {
         first_name: formData.first_name.trim(),
         middle_name: formData.middle_name.trim(),
         last_name: formData.last_name.trim(),
@@ -185,20 +230,30 @@ const RegisterStudent = () => {
         guardian_phone: formData.guardian_phone.trim(),
         guardian_relation: formData.guardian_relation.trim(),
       };
-      const res = await createStudent(payload);
-      const createdStudent = res.data?.data || res.data;
-      const enrollmentNo = createdStudent?.enrollment_no || '';
-      navigate('/add-enrollment', {
-        state: {
-          newStudentId: createdStudent?.id,
-          newStudentName: `${createdStudent?.first_name || ''} ${createdStudent?.last_name || ''}`.trim(),
-          newStudentEnrollmentNo: enrollmentNo,
-          newStudentSchoolId: formData.school_id || '',
-        },
-      });
+      if (isEditMode && id) {
+        await updateStudent(id, basePayload);
+        navigate('/students');
+      } else {
+        const payload = {
+          ...basePayload,
+          school_id: formData.school_id,
+          enrollment_year: formData.enrollment_year ? Number(formData.enrollment_year) : undefined,
+        };
+        const res = await createStudent(payload);
+        const createdStudent = res.data?.data || res.data;
+        const enrollmentNo = createdStudent?.enrollment_no || '';
+        navigate('/add-enrollment', {
+          state: {
+            newStudentId: createdStudent?.id,
+            newStudentName: `${createdStudent?.first_name || ''} ${createdStudent?.last_name || ''}`.trim(),
+            newStudentEnrollmentNo: enrollmentNo,
+            newStudentSchoolId: formData.school_id || '',
+          },
+        });
+      }
     } catch (err) {
-      console.error('Create student error:', err);
-      setError(`Failed to register student (${err?.response?.status ?? 'network error'}): ${getErrorMessage(err, 'Unknown error')}`);
+      console.error(isEditMode ? 'Update student error:' : 'Create student error:', err);
+      setError(`Failed to ${isEditMode ? 'update' : 'register'} student (${err?.response?.status ?? 'network error'}): ${getErrorMessage(err, 'Unknown error')}`);
       setLoading(false);
     }
   };
@@ -215,18 +270,25 @@ const RegisterStudent = () => {
         onClick={() => navigate('/students')}
         style={{ background: 'none', border: 'none', padding: 0, margin: '0 0 16px', cursor: 'pointer', color: '#3e7430', font: 'inherit', fontSize: '0.9rem' }}
       >
-        ← Back to Student Management
+        ← {isEditMode ? 'Back to Student Management' : 'Back to Student Management'}
       </button>
-      <h1 style={{ margin: '0 0 8px' }}>Register Student</h1>
+      <h1 style={{ margin: '0 0 8px' }}>{isEditMode ? 'Edit Student' : 'Register Student'}</h1>
       <p style={{ color: 'var(--gray)', marginTop: 0, marginBottom: '24px' }}>
-        After registering, you will be taken to Enrollment to enroll the student.
+        {isEditMode ? 'Update student details below.' : 'After registering, you will be taken to Enrollment to enroll the student.'}
       </p>
 
-      <AlertBox type="error" message={error} />
+      {initialLoading && (
+        <div style={{ padding: '60px 40px', textAlign: 'center' }}>
+          <div className="loading-spinner">Loading student...</div>
+        </div>
+      )}
 
-      <form onSubmit={handleSubmit} style={{ background: 'white', padding: '30px', borderRadius: '12px', boxShadow: '0 2px 8px rgba(0,0,0,0.1)' }}>
+      {!initialLoading && (
+        <>
+          <AlertBox type="error" message={error} />
+          <form onSubmit={handleSubmit} style={{ background: 'white', padding: '30px', borderRadius: '12px', boxShadow: '0 2px 8px rgba(0,0,0,0.1)' }}>
         <div style={{ marginBottom: '15px' }}>
-          <label style={{ display: 'block', marginBottom: '5px', fontWeight: '500' }}>State</label>
+          <label style={{ display: 'block', marginBottom: '5px', fontWeight: '500' }}>State Of School</label>
           <select name="state_id" value={formData.state_id} onChange={handleStateChange} required
             style={{ width: '100%', padding: '10px', border: '1px solid var(--border)', borderRadius: '8px', background: 'white' }}>
             <option value="">Select state</option>
@@ -237,7 +299,7 @@ const RegisterStudent = () => {
         </div>
 
         <div style={{ marginBottom: '15px' }}>
-          <label style={{ display: 'block', marginBottom: '5px', fontWeight: '500' }}>LGA</label>
+          <label style={{ display: 'block', marginBottom: '5px', fontWeight: '500' }}>School Location (LGA)</label>
           <select name="lga_id" value={formData.lga_id} onChange={handleLgaChange} required disabled={!formData.state_id}
             style={{ width: '100%', padding: '10px', border: '1px solid var(--border)', borderRadius: '8px', background: 'white' }}>
             <option value="">Select lga</option>
@@ -359,7 +421,7 @@ const RegisterStudent = () => {
         <div style={{ display: 'flex', gap: '10px', marginTop: '20px' }}>
           <button type="submit" disabled={loading}
             style={{ flex: 1, padding: '12px', background: '#3e7430', color: 'white', border: 'none', borderRadius: '8px', cursor: loading ? 'not-allowed' : 'pointer', fontWeight: '600', opacity: loading ? 0.6 : 1 }}>
-            {loading ? 'Registering…' : 'Register Student'}
+            {loading ? (isEditMode ? 'Saving…' : 'Registering…') : (isEditMode ? 'Update Student' : 'Register Student')}
           </button>
           <button type="button" onClick={() => navigate('/students')}
             style={{ flex: 1, padding: '12px', background: 'var(--bg-light)', border: '1px solid var(--border)', borderRadius: '8px', cursor: 'pointer' }}>
@@ -367,7 +429,9 @@ const RegisterStudent = () => {
           </button>
         </div>
       </form>
-    </div>
+      </>
+    )}
+  </div>
   );
 };
 

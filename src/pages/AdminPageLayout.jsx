@@ -1,24 +1,6 @@
-import React from "react";
+import React, { useState, useEffect } from "react";
 import AdminSidebar from "../components/AdminSidebar";
-
-/**
- * AdminPageLayout — bare structural shell for every admin page.
- *
- * Sidebar fixed at 250px, main content takes the remaining space.
- * No card, table, or button styling lives here — that belongs to
- * whatever page you render as `children` (e.g. a Students table page).
- * Both panels use plain e-Dossier backgrounds: dark panel for the
- * sidebar, cream paper for main content.
- *
- * Usage:
- *   <AdminPageLayout
- *     activeKey="students"
- *     onNavigate={(key) => navigate(`/admin/${key}`)}
- *     permissions={userPermissions}   // optional, see AdminSidebar
- *   >
- *     <StudentsPage />
- *   </AdminPageLayout>
- */
+import { Menu, X } from "lucide-react";
 
 const SIDEBAR_WIDTH = 250;
 
@@ -33,6 +15,21 @@ export default function AdminPageLayout({
   onNavigate,
   permissions = null,
 }) {
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+
+  const closeSidebar = () => setSidebarOpen(false);
+
+  useEffect(() => {
+    if (!sidebarOpen) return;
+    const handleClick = (e) => {
+      if (e.target.classList.contains("admin-layout__sidebar-overlay")) {
+        closeSidebar();
+      }
+    };
+    document.addEventListener("click", handleClick);
+    return () => document.removeEventListener("click", handleClick);
+  }, [sidebarOpen]);
+
   return (
     <div className="admin-layout">
       <style>{`
@@ -56,12 +53,84 @@ export default function AdminPageLayout({
           overflow-y: auto;
           min-width: 0;
         }
+
+        .admin-layout__toggle {
+          display: none;
+          position: fixed;
+          top: 12px;
+          left: 12px;
+          z-index: 1100;
+          padding: 8px;
+          background: ${COLORS.panelDark};
+          color: ${COLORS.paper};
+          border: none;
+          border-radius: 6px;
+          cursor: pointer;
+        }
+
+        .admin-layout__sidebar-overlay {
+          display: none;
+          position: fixed;
+          inset: 0;
+          background: rgba(0,0,0,0.5);
+          z-index: 900;
+        }
+
+        @media (max-width: 768px) {
+          .admin-layout__toggle {
+            display: block;
+          }
+
+          .admin-layout__sidebar {
+            position: fixed;
+            top: 0;
+            left: 0;
+            bottom: 0;
+            z-index: 1000;
+            transform: translateX(-100%);
+            transition: transform 0.2s ease;
+            width: ${SIDEBAR_WIDTH}px;
+          }
+
+          .admin-layout__sidebar-overlay.is-open {
+            display: block;
+          }
+
+          .admin-layout__sidebar.is-open {
+            transform: translateX(0);
+          }
+
+          .admin-layout__main {
+            width: 100%;
+            padding-top: 56px;
+          }
+        }
       `}</style>
 
-      <aside className="admin-layout__sidebar">
+      <button
+        className="admin-layout__toggle"
+        onClick={() => setSidebarOpen((prev) => !prev)}
+        aria-label="Toggle navigation"
+      >
+        {sidebarOpen ? <X size={20} /> : <Menu size={20} />}
+      </button>
+
+      {sidebarOpen && (
+        <div
+          className="admin-layout__sidebar-overlay is-open"
+          aria-hidden="true"
+        />
+      )}
+
+      <aside
+        className={`admin-layout__sidebar${sidebarOpen ? " is-open" : ""}`}
+      >
         <AdminSidebar
           activeKey={activeKey}
-          onNavigate={onNavigate}
+          onNavigate={(key) => {
+            onNavigate?.(key);
+            closeSidebar();
+          }}
           permissions={permissions}
         />
       </aside>

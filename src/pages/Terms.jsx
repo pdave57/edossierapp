@@ -245,7 +245,7 @@ const Terms = () => {
               ) : (
                 terms.map((term) => (
                 <tr key={term.id} style={{ borderBottom: '1px solid var(--border)' }}>
-                  <td style={{ padding: '15px' }}>{sessionMap[term.session_id] || term.session_id || '—'}</td>
+                  <td style={{ padding: '15px' }}>{term.session_name || '—'}</td>
                   <td style={{ padding: '15px' }}>{term.term_number}</td>
                   <td style={{ padding: '15px' }}>{term.name}</td>
                   <td style={{ padding: '15px' }}>{term.start_date ? new Date(term.start_date).toLocaleDateString() : '—'}</td>

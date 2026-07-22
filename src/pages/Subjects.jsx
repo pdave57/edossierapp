@@ -17,6 +17,7 @@ const Subjects = () => {
   const dropdownRef = useRef(null);
 
   const [formData, setFormData] = useState({ name: '', code: '', category: '', level_type: '' });
+  const [searchQuery, setSearchQuery] = useState('');
 
 // Fixed option sets for subject category and level type. Values match the
 // backend's accepted enum (uppercase); labels are shown to the user.
@@ -168,15 +169,40 @@ const SUBJECT_LEVEL_TYPES = [
     );
   }
 
-  const filteredSubjects = subjects;
+  const filteredSubjects = subjects.filter((subject) => {
+    if (!searchQuery.trim()) return true;
+    const query = searchQuery.trim().toLowerCase();
+    return (
+      (subject.name && subject.name.toLowerCase().includes(query)) ||
+      (subject.code && subject.code.toLowerCase().includes(query))
+    );
+  });
   const totalPages = Math.max(1, Math.ceil(filteredSubjects.length / rowsPerPage));
   const safeCurrentPage = Math.min(currentPage, totalPages);
   const paginatedSubjects = filteredSubjects.slice((safeCurrentPage - 1) * rowsPerPage, safeCurrentPage * rowsPerPage);
 
   return (
     <div style={{ padding: '40px', maxWidth: '1400px', margin: '0 auto' }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '30px' }}>
+      <div style={{ marginBottom: '30px' }}>
         <h1>Subject Management</h1>
+      </div>
+
+      <div style={{ marginBottom: '20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '12px' }}>
+        <input
+          type="text"
+          placeholder="Search subjects by name or code..."
+          value={searchQuery}
+          onChange={(e) => { setSearchQuery(e.target.value); setCurrentPage(1); }}
+          style={{
+            flex: 1,
+            maxWidth: '420px',
+            padding: '10px 12px',
+            border: '1px solid var(--border)',
+            borderRadius: '8px',
+            background: 'white',
+            fontSize: '0.95rem',
+          }}
+        />
         <button
           onClick={() => openModal('create')}
           style={{

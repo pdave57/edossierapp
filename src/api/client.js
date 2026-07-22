@@ -208,6 +208,7 @@ export const getLevelSubLevels = (levelId) => api.get(`/api/v1/levels/${levelId}
 
 // --- Sublevels ---
 export const getSublevels = () => api.get('/api/v1/sublevels');
+export const getSublevelsByLevel = (schoolId, levelId) => api.get(`/api/v1/schools/${schoolId}/levels/${levelId}/sub-levels`);
 export const createSublevel = (schoolId, levelId, data) => {
   const params = new URLSearchParams();
   if (schoolId) params.set('school_id', schoolId);
@@ -272,7 +273,6 @@ export const deleteFacility = (schoolId, facilityId) => api.delete(`/api/v1/scho
 export const getTPTotal = () => api.get('/api/v1/reports/public/teaching-personnel');
 export const getGenderTotal = () => api.get('/api/v1/reports/gender/total');
 export const getTotalStudents = () => api.get('/api/v1/reports/students/total');
-export const getTotalPersonnel = () => api.get('/api/v1/reports/personnel/total');
 export const getTotalSchools = () => api.get('/api/v1/reports/schools/total');
 
 // --- Dashboard ---
@@ -280,11 +280,13 @@ export const getDashboardStats = () => api.get('/api/v1/dashboard/stats');
 
 // --- Personnel ---
 export const getPersonnel = (page = 1, limit = 10, params = {}) => api.get('/api/v1/personnel', { params: { page, limit, ...params } });
+export const createPersonnel = (data) => api.post('/api/v1/personnel', data);
 export const getPersonnelById = (id) => api.get(`/api/v1/personnel/${id}`);
 export const updatePersonnel = (id, data) => api.put(`/api/v1/personnel/${id}`, data);
 export const deletePersonnel = (id) => api.delete(`/api/v1/personnel/${id}`);
 export const transferPersonnel = (id, data) => api.post(`/api/v1/personnel/${id}/transfer`, data);
 export const getPersonnelTransfers = (id) => api.get(`/api/v1/personnel/${id}/transfers`);
+export const getTotalPersonnel = (params = {}) => api.get('/api/v1/reports/personnel/total', { params });
 
 // --- Students ---
 export const getStudents = (page = 1, limit = 10, params = {}) => api.get('/api/v1/students', { params: { page, limit, ...params } });
@@ -317,7 +319,13 @@ export const publishReportCard = (id) => api.post(`/api/v1/results/report-cards/
 // --- Score & Grade Configuration ---
 export const upsertScoreConfig = (data) => api.post('/api/v1/results/score-config', data);
 export const upsertGradeConfig = (data) => api.post('/api/v1/results/grade-config', data);
-export const getGradeConfigs = () => api.get('/api/v1/results/grade-config');
+export const getGradeConfigs = (schoolId, levelId) => {
+  const params = {};
+  if (schoolId) params.school_id = schoolId;
+  if (levelId) params.level_id = levelId;
+  return api.get('/api/v1/results/grade-config', Object.keys(params).length ? { params } : {});
+};
+export const deleteGradeConfig = (id) => api.delete(`/api/v1/results/grade-config/${id}`);
 
 // --- Avatars ---
 export const uploadPersonnelAvatar = (id, file) => {

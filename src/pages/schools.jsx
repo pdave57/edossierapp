@@ -541,6 +541,12 @@ const Schools = () => {
                               >
                                  + Add Classes
                               </button>
+                              <button
+                                onClick={() => { setOpenDropdownId(null); navigate(`/add-personnel?school_id=${school.id}`); }}
+                                style={{ display: 'block', width: '100%', padding: '10px 16px', border: 'none', background: 'transparent', cursor: 'pointer', textAlign: 'left', fontSize: '0.9rem', color: '#3e7430' }}
+                              >
+                                 + Add Personnel
+                              </button>
                             </div>
                           )}
                         </div>
