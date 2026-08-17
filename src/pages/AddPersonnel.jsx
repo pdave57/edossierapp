@@ -1,7 +1,8 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { createPersonnel, getPersonnelById, uploadPersonnelAvatar, getSchools, getErrorMessage } from '../api/client';
 import AlertBox from '../components/common/AlertBox';
+import { QUALIFICATIONS } from '../constants/qualifications';
 
 const GENDERS = [
   { label: 'Male', value: 'MALE' },
@@ -18,17 +19,6 @@ const PERSONNEL_ROLES = [
   { label: 'Counselor', value: 'COUNSELOR' },
   { label: 'Librarian', value: 'LIBRARIAN' },
   { label: 'Lab Technician', value: 'LAB_TECHNICIAN' },
-  { label: 'Other', value: 'OTHER' },
-];
-
-const QUALIFICATIONS = [
-  { label: 'PhD Holder', value: 'PHD' },
-  { label: 'BSc / BA', value: 'BSC_BA' },
-  { label: 'HND', value: 'HND' },
-  { label: 'PgD Edu', value: 'PGD_EDU' },
-  { label: 'NCE', value: 'NCE' },
-  { label: 'SSCE', value: 'SSCE' },
-  { label: 'Grade II', value: 'GRADE_II' },
   { label: 'Other', value: 'OTHER' },
 ];
 
@@ -55,6 +45,15 @@ const AddPersonnel = () => {
   const [searchParams] = useSearchParams();
   const schoolIdParam = searchParams.get('school_id');
   const [formData, setFormData] = useState(emptyForm);
+
+  const qualificationOptions = useMemo(() => {
+    const opts = [...QUALIFICATIONS];
+    const current = formData.qualification;
+    if (current && !opts.some((o) => o.value === current)) {
+      opts.push({ label: current, value: current });
+    }
+    return opts;
+  }, [formData.qualification]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [schools, setSchools] = useState([]);
@@ -264,7 +263,7 @@ const AddPersonnel = () => {
               style={{ width: '100%', padding: '10px', border: '1px solid var(--border)', borderRadius: '8px', background: 'white' }}
             >
               <option value="">Select qualification</option>
-              {QUALIFICATIONS.map((q) => (
+              {qualificationOptions.map((q) => (
                 <option key={q.value} value={q.value}>{q.label}</option>
               ))}
             </select>

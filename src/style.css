@@ -91,7 +91,7 @@ header{
 }
 
 /* NAV */
-nav{display:flex;gap:2px;align-items:center;margin-left:auto;}
+nav{display:flex;gap:12px;align-items:center;margin-left:auto;}
 nav a{
   font-size:13px;font-weight:500;color:var(--n);
   padding:8px 14px;border-radius:8px;
@@ -1297,4 +1297,66 @@ footer{background:var(--n);color:rgba(255,255,255,.55);padding:60px 64px 28px;}
   height: 88px;
   object-fit: contain;
   margin-bottom: 0.9rem;
+}
+
+/* ══════════════════════════════════════════════════════════
+   ADMIN PANEL — MOBILE RESPONSIVE ADDITIONS
+   Applied globally inside .adm-layout__content
+══════════════════════════════════════════════════════════ */
+
+/* ── stat grid responsive ───────────────────────────────── */
+@media (max-width: 768px) {
+  .register {
+    padding: 20px 16px;
+  }
+  .stat-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+  .panel-grid {
+    grid-template-columns: 1fr;
+  }
+  .register__header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 8px;
+  }
+  .register__title {
+    font-size: 22px;
+  }
+}
+@media (max-width: 480px) {
+  .stat-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* ── Data tables get horizontal scroll ──────────────────── */
+.adm-layout__content table {
+  min-width: 560px;
+}
+
+/* ── Loading spinner ─────────────────────────────────────── */
+.loading-spinner {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 15px;
+  color: var(--primaryText, #3F7A2F);
+}
+.loading-spinner::before {
+  content: '';
+  width: 20px;
+  height: 20px;
+  border: 2.5px solid var(--border, #d4e8ce);
+  border-top-color: var(--primary, #82C46C);
+  border-radius: 50%;
+  animation: spin 0.75s linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* ── Responsive table helper class ─────────────────────── */
+.table-responsive {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  border-radius: 12px;
 }

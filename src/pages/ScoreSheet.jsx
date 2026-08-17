@@ -8,6 +8,7 @@ import {
   bulkUpsertScores,
   getSessions,
   getTerms,
+  getActiveTerm,
   getLevels,
   getSubjects,
   getSchools,
@@ -81,13 +82,14 @@ const ScoreSheet = () => {
 
   const fetchTerms = useCallback(async () => {
     try {
-      const res = await getTerms();
-      const list = Array.isArray(res.data) ? res.data : (res.data?.data ?? []);
+      const res = await getActiveTerm(formData.session_id || null);
+      const raw = Array.isArray(res.data) ? res.data : (res.data?.data ?? res.data ?? []);
+      const list = Array.isArray(raw) ? raw : [raw];
       setTerms(list);
     } catch (err) {
       console.error('Terms fetch error:', err);
     }
-  }, []);
+  }, [formData.session_id]);
 
   const fetchLevels = useCallback(async () => {
     try {
@@ -364,7 +366,7 @@ const ScoreSheet = () => {
               style={{ width: '100%', padding: '8px 10px', border: '1px solid var(--border)', borderRadius: '8px', background: 'white', fontSize: '0.9rem' }}
             >
               <option value="">Select term</option>
-              {terms.map((term) => (
+              {(Array.isArray(terms) ? terms : []).map((term) => (
                 <option key={term.id} value={term.id}>{term.name}</option>
               ))}
             </select>

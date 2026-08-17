@@ -547,6 +547,18 @@ const Schools = () => {
                               >
                                  + Add Personnel
                               </button>
+                              <button
+                                onClick={() => { setOpenDropdownId(null); navigate(`/school-subjects?school_id=${school.id}`); }}
+                                style={{ display: 'block', width: '100%', padding: '10px 16px', border: 'none', background: 'transparent', cursor: 'pointer', textAlign: 'left', fontSize: '0.9rem', color: '#3e7430' }}
+                              >
+                                 + Subjects
+                              </button>
+                              <button
+                                onClick={() => { setOpenDropdownId(null); navigate(`/predictions?school_id=${school.id}`); }}
+                                style={{ display: 'block', width: '100%', padding: '10px 16px', border: 'none', background: 'transparent', cursor: 'pointer', textAlign: 'left', fontSize: '0.9rem', color: '#3e7430' }}
+                              >
+                                 📊 Prediction
+                              </button>
                             </div>
                           )}
                         </div>

@@ -20,6 +20,7 @@ import {
   LogOut,
   ToiletIcon,
   UserPlus,
+  TrendingUp,
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
@@ -99,6 +100,7 @@ const NAV_GROUPS = [
     defaultOpen: false,
     items: [
       { key: "schools", label: "All schools", icon: School },
+      { key: "school-logo-upload", label: "Upload School Logo", icon: School },
       // { key: "facilities", label: "Add Facilities", icon: ToiletIcon },
       // { key: "academic-years", label: "Academic years", icon: CalendarRange },
       // { key: "terms", label: "Terms", icon: CalendarDays },
@@ -113,11 +115,12 @@ const NAV_GROUPS = [
     accordion: true,
     defaultOpen: false,
     items: [
-      { key: "register-student", label: "Register Student", icon: UserPlus },
-      // { key: "add-enrollment", label: "Add Enrollment", icon: UserPlus },
+      { key: "register-student",   label: "Register Student",  icon: UserPlus },
+      // { key: "add-enrollment",  label: "Add Enrollment",    icon: UserPlus },
       // { key: "student-dashboard", label: "Student Dashboard", icon: GraduationCap },
-      // { key: "student-profile", label: "Student Profile", icon: GraduationCap },
-      { key: "student-management", label: "Students", icon: GraduationCap },      
+      // { key: "student-profile", label: "Student Profile",   icon: GraduationCap },
+      { key: "student-management", label: "Students",          icon: GraduationCap },
+      { key: "student-attendance", label: "Attendance",        icon: CalendarDays },
     ],
   },
   {
@@ -130,13 +133,29 @@ const NAV_GROUPS = [
       { key: "score-config", label: "Score Config", icon: FileSpreadsheet },
       { key: "grade-config", label: "Grade Config", icon: FileSpreadsheet },
       { key: "score-sheet", label: "Score Sheet", icon: FileSpreadsheet },
+      { key: "report-cards", label: "Report Cards", icon: FileSpreadsheet },
     ],
   },  
+  {
+    id: "predictions",
+    label: "Predictions",
+    items: [
+      { key: "predictions", label: "Predictions", icon: FileSpreadsheet },
+    ],
+  },
+  {
+    id: "recommendations",
+    label: "Recommendations",
+    items: [
+      { key: "recommendation", label: "Recommendations", icon: TrendingUp },
+    ],
+  },
   {
     id: "personnel",
     label: "Personnel",
     items: [
       { key: "personnel", label: "Personnel", icon: UsersIcon },
+      { key: "personnel-attendance", label: "Attendance", icon: UsersIcon },
     ],
   },
  

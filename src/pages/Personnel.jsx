@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef, useCallback, lazy } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import {
@@ -41,10 +41,17 @@ const PERSONNEL_STATUSES = [
 
 const QUALIFICATIONS = [
   { label: 'PhD Holder', value: 'PHD' },
-  { label: 'BSc / BA', value: 'BSC_BA' },
+  { label: 'MSc / MA', value: 'MSC_MA' },
+  { label: 'MSc.Ed', value: 'MSC_ED' },
+  { label: 'MA.Ed', value: 'MA_ED' },
+  { label: 'BSc', value: 'BSc' },
+  { label: 'BA Hons', value: 'BA_Hons' },
+  { label: 'BSc.Ed', value: 'BEd' },
+  { label: 'BA.Ed', value: 'BA_ED' },
   { label: 'HND', value: 'HND' },
   { label: 'PgD Edu', value: 'PGD_EDU' },
   { label: 'NCE', value: 'NCE' },
+  { label: 'OND', value: 'OND' },
   { label: 'SSCE', value: 'SSCE' },
   { label: 'Grade II', value: 'GRADE_II' },
   { label: 'Other', value: 'OTHER' },
@@ -145,7 +152,7 @@ const Personnel = () => {
     return () => document.removeEventListener('mousedown', handleClick);
   }, [openDropdownId]);
 
-  function openModal(mode, person = null) {
+  const openModal = useCallback((mode, person = null) => {
     setModalMode(mode);
     setSelectedPersonnel(person);
     if (mode === 'edit') {
@@ -170,7 +177,7 @@ const Personnel = () => {
     }
     setShowModal(true);
     setOpenDropdownId(null);
-  }
+  }, []);
 
   useEffect(() => {
     const personnelId = searchParams.get('personnel_id');
@@ -182,27 +189,29 @@ const Personnel = () => {
         }
       });
     }
-  }, [searchParams]);
+  }, [searchParams, openModal]);
 
-  const handleUpdatePersonnel = async (e) => {
+  const handleUpdatePersonnel = useCallback(async (e) => {
     e.preventDefault();
     if (!selectedPersonnel) return;
     try {
       const payload = {
-        school_id: formData.school_id,
-        first_name: formData.first_name,
-        middle_name: formData.middle_name,
-        last_name: formData.last_name,
-        gender: formData.gender,
+        school_id: formData.school_id || undefined,
+        staff_id: formData.staff_id || undefined,
+        first_name: formData.first_name || undefined,
+        middle_name: formData.middle_name || undefined,
+        last_name: formData.last_name || undefined,
+        gender: formData.gender || undefined,
         date_of_birth: formData.date_of_birth ? `${formData.date_of_birth}T00:00:00Z` : undefined,
-        email: formData.email,
-        phone: formData.phone,
-        address: formData.address,
-        role: formData.role,
-        status: formData.status,
-        qualification: formData.qualification,
-        specialization: formData.specialization,
+        email: formData.email || undefined,
+        phone: formData.phone || undefined,
+        address: formData.address || undefined,
+        role: formData.role || undefined,
+        status: formData.status || undefined,
+        qualification: formData.qualification || undefined,
+        specialization: formData.specialization || undefined,
         date_of_employment: formData.date_of_employment ? `${formData.date_of_employment}T00:00:00Z` : undefined,
+        lga_id: formData.lga_id || undefined,
       };
       await updatePersonnel(selectedPersonnel.id, payload);
       await fetchPersonnel();
@@ -211,7 +220,7 @@ const Personnel = () => {
       console.error('Update personnel error:', err);
       setError(`Failed to update personnel (${err?.response?.status ?? 'network error'}): ${getErrorMessage(err, 'Unknown error')}`);
     }
-  };
+  }, [selectedPersonnel, formData, updatePersonnel, fetchPersonnel, setShowModal, setError]);
 
   const handleDeletePersonnel = async () => {
     if (!selectedPersonnel) return;
@@ -252,6 +261,81 @@ const Personnel = () => {
       setOpenDropdownId(null);
     } catch (err) {
       setError(`Failed to fetch transfers (${err?.response?.status ?? 'network error'}): ${getErrorMessage(err, 'Unknown error')}`);
+    }
+  };
+
+  const handleDownloadProfile = () => {
+    if (!selectedPersonnel) return;
+    const p = selectedPersonnel;
+    const schoolName = getSchoolName(p.school_id);
+    const genderLabel = GENDERS.find((g) => g.value === p.gender)?.label || p.gender || '—';
+    const statusLabel = PERSONNEL_STATUSES.find((s) => s.value === p.status)?.label || p.status || '—';
+    const roleLabel = PERSONNEL_ROLES.find((r) => r.value === p.role)?.label || p.role || '—';
+    const dob = p.date_of_birth ? new Date(p.date_of_birth).toLocaleDateString('en-GB') : '—';
+    const doe = p.date_of_employment ? new Date(p.date_of_employment).toLocaleDateString('en-GB') : '—';
+
+    const html = `<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Personnel Profile - ${p.first_name} ${p.last_name}</title>
+<style>
+  @page { size: A4; margin: 20mm; }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'Segoe UI', Arial, sans-serif; color: #1a1a2e; padding: 40px; line-height: 1.5; }
+  .header { text-align: center; border-bottom: 3px solid #3e7430; padding-bottom: 16px; margin-bottom: 24px; }
+  .header h1 { font-size: 22px; color: #0e1f38; margin-bottom: 4px; }
+  .header .sub { font-size: 13px; color: #666; }
+  .photo-row { display: flex; align-items: flex-start; gap: 24px; margin-bottom: 24px; }
+  .photo { width: 120px; height: 120px; border-radius: 8px; object-fit: cover; border: 2px solid #ddd; }
+  .photo-placeholder { width: 120px; height: 120px; border-radius: 8px; background: #e8e8e8; display: flex; align-items: center; justify-content: center; font-size: 40px; color: #999; border: 2px solid #ddd; }
+  .info-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px 24px; }
+  .info-item { padding: 8px 0; border-bottom: 1px solid #eee; }
+  .info-item .label { font-size: 11px; text-transform: uppercase; color: #888; letter-spacing: 0.5px; }
+  .info-item .value { font-size: 14px; font-weight: 600; color: #1a1a2e; margin-top: 2px; }
+  .info-item.full { grid-column: 1 / -1; }
+  .badge { display: inline-block; padding: 2px 10px; border-radius: 12px; font-size: 12px; font-weight: 600; }
+  .badge-active { background: #d4edda; color: #155724; }
+  .badge-inactive { background: #e2e3e5; color: #383d41; }
+  .badge-suspended { background: #fff3cd; color: #856404; }
+  .badge-retired { background: #d1ecf1; color: #0c5460; }
+  .badge-transferred { background: #f8d7da; color: #721c24; }
+  .footer { margin-top: 32px; padding-top: 12px; border-top: 1px solid #ddd; font-size: 11px; color: #999; text-align: center; }
+  @media print { body { padding: 0; } }
+</style>
+</head>
+<body>
+<div class="header">
+  <h1>${schoolName || 'School'}</h1>
+  <div class="sub">Personnel Profile Report</div>
+</div>
+<div class="photo-row">
+  ${p.avatar_url ? `<img class="photo" src="${p.avatar_url}" alt="Profile Photo">` : '<div class="photo-placeholder">👤</div>'}
+  <div class="info-grid" style="flex: 1;">
+    <div class="info-item full"><div class="label">Full Name</div><div class="value">${p.last_name}, ${p.first_name} ${p.middle_name || ''}</div></div>
+    <div class="info-item"><div class="label">Staff ID</div><div class="value">${p.staff_id || '—'}</div></div>
+    <div class="info-item"><div class="label">Role</div><div class="value">${roleLabel}</div></div>
+    <div class="info-item"><div class="label">Gender</div><div class="value">${genderLabel}</div></div>
+    <div class="info-item"><div class="label">Date of Birth</div><div class="value">${dob}</div></div>
+    <div class="info-item"><div class="label">Date of Employment</div><div class="value">${doe}</div></div>
+    <div class="info-item"><div class="label">Email</div><div class="value">${p.email || '—'}</div></div>
+    <div class="info-item"><div class="label">Phone</div><div class="value">${p.phone || '—'}</div></div>
+    <div class="info-item"><div class="label">Qualification</div><div class="value">${p.qualification || '—'}</div></div>
+    <div class="info-item"><div class="label">Specialization</div><div class="value">${p.specialization || '—'}</div></div>
+    <div class="info-item full"><div class="label">Address</div><div class="value">${p.address || '—'}</div></div>
+    <div class="info-item"><div class="label">Status</div><div class="value"><span class="badge badge-${p.status?.toLowerCase()}">${statusLabel}</span></div></div>
+  </div>
+</div>
+<div class="footer">Generated on ${new Date().toLocaleDateString('en-GB')} | e-Dossier System</div>
+</body>
+</html>`;
+
+    const win = window.open('', '_blank', 'width=800,height=600');
+    if (win) {
+      win.document.write(html);
+      win.document.close();
+      win.focus();
+      setTimeout(() => win.print(), 300);
     }
   };
 
@@ -325,7 +409,7 @@ const Personnel = () => {
           <thead>
             <tr style={{ background: 'var(--bg-light)', borderBottom: '2px solid var(--border)' }}>
               <th style={{ padding: '15px', textAlign: 'left' }}>Name</th>
-              <th style={{ padding: '15px', textAlign: 'left' }}>Staff ID</th>
+              <th style={{ padding: '15px', textAlign: 'left' }}>PSN</th>
               <th style={{ padding: '15px', textAlign: 'left' }}>Role</th>
               <th style={{ padding: '15px', textAlign: 'left' }}>School</th>
               <th style={{ padding: '15px', textAlign: 'left' }}>Phone</th>
@@ -394,6 +478,12 @@ const Personnel = () => {
                             View
                           </button>
                           <button
+                            onClick={() => navigate(`/personnel/${person.id}/avatar`)}
+                            style={{ display: 'block', width: '100%', padding: '10px 16px', border: 'none', background: 'transparent', cursor: 'pointer', textAlign: 'left', fontSize: '0.9rem' }}
+                          >
+                            Upload Avatar
+                          </button>
+                          <button
                             onClick={() => { setOpenDropdownId(null); openModal('edit', person); }}
                             style={{ display: 'block', width: '100%', padding: '10px 16px', border: 'none', background: 'transparent', cursor: 'pointer', textAlign: 'left', fontSize: '0.9rem' }}
                           >
@@ -410,6 +500,12 @@ const Personnel = () => {
                             style={{ display: 'block', width: '100%', padding: '10px 16px', border: 'none', background: 'transparent', cursor: 'pointer', textAlign: 'left', fontSize: '0.9rem' }}
                           >
                             Transfer History
+                          </button>
+                          <button
+                            onClick={() => { setOpenDropdownId(null); setSelectedPersonnel(person); handleDownloadProfile(); }}
+                            style={{ display: 'block', width: '100%', padding: '10px 16px', border: 'none', background: 'transparent', cursor: 'pointer', textAlign: 'left', fontSize: '0.9rem' }}
+                          >
+                            Download Profile
                           </button>
                           <button
                             onClick={() => { setOpenDropdownId(null); setSelectedPersonnel(person); handleDeletePersonnel(); }}
@@ -519,6 +615,9 @@ const Personnel = () => {
                 <button type="button" onClick={() => setShowModal(false)} style={{ width: '100%', padding: '12px', marginTop: '20px', background: 'var(--bg-light)', border: '1px solid var(--border)', borderRadius: '8px', cursor: 'pointer' }}>
                   Close
                 </button>
+                <button type="button" onClick={handleDownloadProfile} style={{ width: '100%', padding: '12px', marginTop: '10px', background: '#3e7430', color: 'white', border: 'none', borderRadius: '8px', cursor: 'pointer', fontWeight: '600' }}>
+                  Download Profile
+                </button>
               </div>
             ) : (
               <form onSubmit={handleUpdatePersonnel}>
@@ -538,7 +637,7 @@ const Personnel = () => {
                   </select>
                 </div>
                 <div style={{ marginBottom: '15px' }}>
-                  <label style={{ display: 'block', marginBottom: '5px', fontWeight: '500' }}>Staff ID</label>
+                  <label style={{ display: 'block', marginBottom: '5px', fontWeight: '500' }}>PSN</label>
                   <input
                     type="text"
                     value={formData.staff_id}

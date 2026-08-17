@@ -45,6 +45,16 @@ import PersonnelAvatar from './pages/PersonnelAvatar';
 import ScoreConfig from './pages/ScoreConfig';
 import GradeConfig from './pages/GradeConfig';
 import ScoreSheet from './pages/ScoreSheet';
+import PredictionPage from './pages/PredictionPage';
+import PersonnelAttendance from './pages/PersonnelAttendance';
+import StudentAttendance from './pages/StudentAttendance';
+import PersonnelProfile from './pages/PersonnelProfile';
+import RecommendationPage from './pages/RecommendationPage';
+import SchoolSubjects from './pages/SchoolSubjects';
+import SchoolLogoUpload from './pages/SchoolLogoUpload';
+import ReportCards from './pages/ReportCards';
+import ReportCardView from './pages/ReportCardView';
+import Edossier from './pages/Edossier';
 
 // Shared navigation map: sidebar/item key -> route path.
 const ROUTE_MAP = {
@@ -73,6 +83,14 @@ const ROUTE_MAP = {
   "score-config": "/score-config",
   "grade-config": "/grade-config",
   "score-sheet": "/score-sheet",
+  predictions: "/predictions",
+  "personnel-attendance": "/personnel-attendance",
+  "student-attendance": "/student-attendance",
+   recommendation: "/recommendation",
+  "school-subjects": "/school-subjects",
+  "school-logo-upload": "/school-logo-upload",
+  "report-cards": "/report-cards",
+  "e-dossier": "/e-dossier",
 };
 
 const PrivateRoute = ({ children }) => {
@@ -85,7 +103,7 @@ const PrivateRoute = ({ children }) => {
   return isAuthenticated ? children : <Navigate to="/login" replace />;
 };
 
-const ADMIN_ROUTES = ["/admindashboard", "/users", "/schools", "/roles", "/permissions", "/zones", "/lgas", "/academic-years", "/terms", "/levels", "/sublevels", "/subjects", "/facilities", "/students", "/register-student", "/enrollments", "/add-enrollment", "/student-dashboard", "/student-profile", "/personnel", "/add-personnel", "/score-config", "/grade-config", "/score-sheet"];
+const ADMIN_ROUTES = ["/admindashboard", "/users", "/schools", "/roles", "/permissions", "/zones", "/lgas", "/academic-years", "/terms", "/levels", "/sublevels", "/subjects", "/facilities", "/students", "/register-student", "/enrollments", "/add-enrollment", "/student-dashboard", "/student-profile", "/personnel", "/add-personnel", "/score-config", "/grade-config", "/score-sheet", "/predictions", "/personnel-attendance", "/personnel-profile", "/student-attendance", "/recommendation", "/school-subjects", "/school-logo-upload", "/report-cards", "/e-dossier"];
 
 function AdminDashboardRoute() {
   const navigate = useNavigate();
@@ -194,6 +212,54 @@ function SchoolsRoute() {
     <PrivateRoute>
       <AdminPageLayout activeKey="schools" onNavigate={handleNavigate} permissions={null}>
         <Schools />
+      </AdminPageLayout>
+    </PrivateRoute>
+  );
+}
+
+function SchoolLogoUploadRoute() {
+  const navigate = useNavigate();
+  const handleNavigate = (key) => {
+    const path = ROUTE_MAP[key];
+    if (path) navigate(path);
+  };
+
+  return (
+    <PrivateRoute>
+      <AdminPageLayout activeKey="school-logo-upload" onNavigate={handleNavigate} permissions={null}>
+        <SchoolLogoUpload />
+      </AdminPageLayout>
+    </PrivateRoute>
+  );
+}
+
+function ReportCardsRoute() {
+  const navigate = useNavigate();
+  const handleNavigate = (key) => {
+    const path = ROUTE_MAP[key];
+    if (path) navigate(path);
+  };
+
+  return (
+    <PrivateRoute>
+      <AdminPageLayout activeKey="report-cards" onNavigate={handleNavigate} permissions={null}>
+        <ReportCards />
+      </AdminPageLayout>
+    </PrivateRoute>
+  );
+}
+
+function ReportCardViewRoute() {
+  const navigate = useNavigate();
+  const handleNavigate = (key) => {
+    const path = ROUTE_MAP[key];
+    if (path) navigate(path);
+  };
+
+  return (
+    <PrivateRoute>
+      <AdminPageLayout activeKey="report-cards" onNavigate={handleNavigate} permissions={null}>
+        <ReportCardView />
       </AdminPageLayout>
     </PrivateRoute>
   );
@@ -487,6 +553,120 @@ function ScoreSheetRoute() {
   );
 }
 
+function EdossierRoute() {
+  const navigate = useNavigate();
+  const handleNavigate = (key) => {
+    const path = ROUTE_MAP[key];
+    if (path) navigate(path);
+  };
+
+  return (
+    <PrivateRoute>
+      <AdminPageLayout activeKey="exams" onNavigate={handleNavigate} permissions={null}>
+        <Edossier />
+      </AdminPageLayout>
+    </PrivateRoute>
+  );
+}
+
+export { EdossierRoute };
+
+function PredictionRoute() {
+  const navigate = useNavigate();
+  const handleNavigate = (key) => {
+    const path = ROUTE_MAP[key];
+    if (path) navigate(path);
+  };
+
+  return (
+    <PrivateRoute>
+      <AdminPageLayout activeKey="predictions" onNavigate={handleNavigate} permissions={null}>
+        <PredictionPage />
+      </AdminPageLayout>
+    </PrivateRoute>
+  );
+}
+
+function PersonnelAttendanceRoute() {
+  const navigate = useNavigate();
+  const handleNavigate = (key) => {
+    const path = ROUTE_MAP[key];
+    if (path) navigate(path);
+  };
+
+  return (
+    <PrivateRoute>
+      <AdminPageLayout activeKey="personnel-attendance" onNavigate={handleNavigate} permissions={null}>
+        <PersonnelAttendance />
+      </AdminPageLayout>
+    </PrivateRoute>
+  );
+}
+
+function PersonnelProfileRoute() {
+  const navigate = useNavigate();
+  const handleNavigate = (key) => {
+    const path = ROUTE_MAP[key];
+    if (path) navigate(path);
+  };
+
+  return (
+    <PrivateRoute>
+      <AdminPageLayout activeKey="personnel" onNavigate={handleNavigate} permissions={null}>
+        <PersonnelProfile />
+      </AdminPageLayout>
+    </PrivateRoute>
+  );
+}
+
+function StudentAttendanceRoute() {
+  const navigate = useNavigate();
+  const handleNavigate = (key) => {
+    const path = ROUTE_MAP[key];
+    if (path) navigate(path);
+  };
+
+  return (
+    <PrivateRoute>
+      <AdminPageLayout activeKey="personnel" onNavigate={handleNavigate} permissions={null}>
+        <StudentAttendance />
+      </AdminPageLayout>
+    </PrivateRoute>
+  );
+}
+
+function RecommendationRoute() {
+  const navigate = useNavigate();
+  const handleNavigate = (key) => {
+    const path = ROUTE_MAP[key];
+    if (path) navigate(path);
+  };
+
+  return (
+    <PrivateRoute>
+      <AdminPageLayout activeKey="recommendation" onNavigate={handleNavigate} permissions={null}>
+        <RecommendationPage />
+      </AdminPageLayout>
+    </PrivateRoute>
+  );
+}
+
+function SchoolSubjectsRoute() {
+  const navigate = useNavigate();
+  const handleNavigate = (key) => {
+    const path = ROUTE_MAP[key];
+    if (path) navigate(path);
+  };
+
+  return (
+    <PrivateRoute>
+      <AdminPageLayout activeKey="schools" onNavigate={handleNavigate} permissions={null}>
+        <SchoolSubjects />
+      </AdminPageLayout>
+    </PrivateRoute>
+  );
+}
+
 function AppContent() {
   const location = useLocation();
   const isAdminRoute = ADMIN_ROUTES.some((r) => location.pathname.startsWith(r));
@@ -514,6 +694,8 @@ function AppContent() {
 
         <Route path="/users" element={<UsersRoute />} />
         <Route path="/schools" element={<SchoolsRoute />} />
+        <Route path="/school-logo-upload" element={<SchoolLogoUploadRoute />} />
+        <Route path="/school-subjects" element={<SchoolSubjectsRoute />} />
         <Route path="/roles" element={<RolesRoute />} />
         <Route path="/permissions" element={<PermissionsRoute />} />
         <Route path="/zones" element={<ZonesRoute />} />
@@ -537,7 +719,15 @@ function AppContent() {
         <Route path="/score-config" element={<ScoreConfigRoute />} />
         <Route path="/grade-config" element={<GradeConfigRoute />} />
         <Route path="/score-sheet" element={<ScoreSheetRoute />} />
+        <Route path="/predictions" element={<PredictionRoute />} />
+        <Route path="/personnel-attendance" element={<PersonnelAttendanceRoute />} />
+        <Route path="/personnel-profile" element={<PersonnelProfileRoute />} />
+        <Route path="/student-attendance" element={<StudentAttendanceRoute />} />
+        <Route path="/recommendation" element={<RecommendationRoute />} />
+        <Route path="/report-cards" element={<ReportCardsRoute />} />
+        <Route path="/report-cards/:id" element={<ReportCardViewRoute />} />
         <Route path="/admindashboard" element={<AdminDashboardRoute />} />
+        <Route path="/e-dossier" element={<EdossierRoute />} />
       </Routes>
 
       {!isAdminRoute && <Footer />}

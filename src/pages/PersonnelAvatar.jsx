@@ -1,13 +1,11 @@
 import { useState, useEffect, useCallback } from 'react';
-import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
-import { getPersonnelById, uploadPersonnelAvatar, getSchools, getErrorMessage } from '../api/client';
+import { useNavigate, useParams } from 'react-router-dom';
+import { getPersonnelById, uploadPersonnelAvatar, getErrorMessage } from '../api/client';
 import AlertBox from '../components/common/AlertBox';
 
 const PersonnelAvatar = () => {
   const { id } = useParams();
   const navigate = useNavigate();
-  const [searchParams] = useSearchParams();
-  const schoolIdParam = searchParams.get('school_id');
   const [personnel, setPersonnel] = useState(null);
   const [loading, setLoading] = useState(true);
   const [uploading, setUploading] = useState(false);
@@ -46,7 +44,7 @@ const PersonnelAvatar = () => {
     setError('');
     try {
       await uploadPersonnelAvatar(id, avatarFile);
-      navigate(`/personnel?school_id=${schoolIdParam || ''}`);
+      navigate('/personnel');
     } catch (err) {
       setError(`Failed to upload avatar (${err?.response?.status ?? 'network error'}): ${getErrorMessage(err, 'Unknown error')}`);
       setUploading(false);
@@ -54,7 +52,7 @@ const PersonnelAvatar = () => {
   };
 
   const handleSkip = () => {
-    navigate(`/personnel?school_id=${schoolIdParam || ''}`);
+    navigate('/personnel');
   };
 
   if (loading) {

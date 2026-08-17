@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { Search } from 'lucide-react';
 import AlertBox from '../components/common/AlertBox';
 import {
   getStudents,
@@ -42,6 +43,11 @@ const Students = () => {
 
   const [schools, setSchools] = useState([]);
 
+  const [filterSchoolId, setFilterSchoolId] = useState('');
+  const [schoolSearchQuery, setSchoolSearchQuery] = useState('');
+  const [schoolDropdownOpen, setSchoolDropdownOpen] = useState(false);
+  const schoolDropdownRef = useRef(null);
+
   const [formData, setFormData] = useState({
     state_id: '',
     lga_id: '',
@@ -61,7 +67,6 @@ const Students = () => {
   });
 
   const [searchQuery, setSearchQuery] = useState('');
-  const [filterSchoolId, setFilterSchoolId] = useState('');
   const [allStudents, setAllStudents] = useState([]);
 
   const fetchSchools = useCallback(async () => {
@@ -123,6 +128,16 @@ const Students = () => {
     document.addEventListener('mousedown', handleClick);
     return () => document.removeEventListener('mousedown', handleClick);
   }, [openDropdownId]);
+
+  useEffect(() => {
+    if (!schoolDropdownOpen) return;
+    const handleClick = (e) => {
+      if (e.target.closest('.school-search-dropdown')) return;
+      setSchoolDropdownOpen(false);
+    };
+    document.addEventListener('mousedown', handleClick);
+    return () => document.removeEventListener('mousedown', handleClick);
+  }, [schoolDropdownOpen]);
 
   const openModal = (mode, student = null) => {
     setModalMode(mode);
@@ -268,18 +283,119 @@ const Students = () => {
             style={{ width: '100%', padding: '10px 12px', border: '1px solid var(--border)', borderRadius: '8px', background: 'white', fontSize: '0.95rem' }}
           />
         </div>
-        <div style={{ flex: '1 1 260px', minWidth: '200px' }}>
+        <div style={{ flex: '1 1 260px', minWidth: '200px', position: 'relative' }}>
           <label style={{ display: 'block', marginBottom: '5px', fontWeight: '500', fontSize: '0.9rem' }}>School</label>
-          <select
-            value={filterSchoolId}
-            onChange={(e) => setFilterSchoolId(e.target.value)}
-            style={{ width: '100%', padding: '10px 12px', border: '1px solid var(--border)', borderRadius: '8px', background: 'white', fontSize: '0.95rem' }}
+          <div
+            className="school-search-dropdown"
+            style={{ position: 'relative' }}
           >
-            <option value="">All Schools</option>
-            {schools.map((school) => (
-              <option key={school.id} value={school.id}>{school.name}</option>
-            ))}
-          </select>
+            <button
+              type="button"
+              onClick={() => { setSchoolDropdownOpen((prev) => !prev); setSchoolSearchQuery(''); }}
+              style={{
+                width: '100%',
+                padding: '10px 12px',
+                border: '1px solid var(--border)',
+                borderRadius: '8px',
+                background: 'white',
+                fontSize: '0.95rem',
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                textAlign: 'left',
+              }}
+            >
+              <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', color: filterSchoolId ? '#1a1a1a' : '#888' }}>
+                {filterSchoolId ? schools.find((s) => s.id === filterSchoolId)?.name || 'All Schools' : 'All Schools'}
+              </span>
+              <Search size={16} style={{ flexShrink: 0, marginLeft: '8px', color: '#888' }} />
+            </button>
+            {schoolDropdownOpen && (
+              <div
+                style={{
+                  position: 'absolute',
+                  top: '100%',
+                  left: 0,
+                  right: 0,
+                  marginTop: '4px',
+                  background: 'white',
+                  border: '1px solid var(--border)',
+                  borderRadius: '8px',
+                  boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
+                  zIndex: 9999,
+                  maxHeight: '260px',
+                  display: 'flex',
+                  flexDirection: 'column',
+                }}
+              >
+                <div style={{ padding: '8px', borderBottom: '1px solid var(--border)' }}>
+                  <input
+                    type="text"
+                    placeholder="Search schools..."
+                    value={schoolSearchQuery}
+                    onChange={(e) => setSchoolSearchQuery(e.target.value)}
+                    autoFocus
+                    style={{
+                      width: '100%',
+                      padding: '8px 10px',
+                      border: '1px solid var(--border)',
+                      borderRadius: '6px',
+                      background: 'white',
+                      fontSize: '0.9rem',
+                      outline: 'none',
+                    }}
+                  />
+                </div>
+                <div style={{ overflowY: 'auto', maxHeight: '210px' }}>
+                  <button
+                    type="button"
+                    onClick={() => { setFilterSchoolId(''); setSchoolDropdownOpen(false); setSchoolSearchQuery(''); }}
+                    style={{
+                      display: 'block',
+                      width: '100%',
+                      padding: '10px 12px',
+                      border: 'none',
+                      background: 'transparent',
+                      cursor: 'pointer',
+                      textAlign: 'left',
+                      fontSize: '0.9rem',
+                      color: !filterSchoolId ? '#3e7430' : 'inherit',
+                      fontWeight: !filterSchoolId ? '600' : '400',
+                    }}
+                  >
+                    All Schools
+                  </button>
+                  {schools
+                    .filter((s) => !schoolSearchQuery || s.name.toLowerCase().includes(schoolSearchQuery.toLowerCase()))
+                    .map((school) => (
+                      <button
+                        key={school.id}
+                        type="button"
+                        onClick={() => { setFilterSchoolId(school.id); setSchoolDropdownOpen(false); setSchoolSearchQuery(''); }}
+                        style={{
+                          display: 'block',
+                          width: '100%',
+                          padding: '10px 12px',
+                          border: 'none',
+                          background: 'transparent',
+                          cursor: 'pointer',
+                          textAlign: 'left',
+                          fontSize: '0.9rem',
+                          color: filterSchoolId === school.id ? '#3e7430' : 'inherit',
+                          fontWeight: filterSchoolId === school.id ? '600' : '400',
+                        }}
+                      >
+                        {school.name}
+                      </button>
+                    ))}
+                  {schools.filter((s) => !schoolSearchQuery || s.name.toLowerCase().includes(schoolSearchQuery.toLowerCase())).length === 0 && (
+                    <div style={{ padding: '12px', textAlign: 'center', color: 'var(--gray)', fontSize: '0.9rem' }}>No schools found</div>
+                  )}
+                </div>
+              </div>
+            )}
+          </div>
         </div>
       </div>
 
@@ -339,6 +455,12 @@ const Students = () => {
                             style={{ display: 'block', width: '100%', padding: '10px 16px', border: 'none', background: 'transparent', cursor: 'pointer', textAlign: 'left', fontSize: '0.9rem' }}
                           >
                             View Profile
+                          </button>
+                          <button
+                            onClick={() => navigate(`/e-dossier?student_id=${student.id}`)}
+                            style={{ display: 'block', width: '100%', padding: '10px 16px', border: 'none', background: 'transparent', cursor: 'pointer', textAlign: 'left', fontSize: '0.9rem' }}
+                          >
+                            E-Dossier
                           </button>
                           <button
                             onClick={() => navigate(`/register-student/${student.id}`)}

@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   BarChart,
   Bar,
@@ -19,23 +19,18 @@ import {
   ArrowUpRight,
   ArrowDownRight,
 } from "lucide-react";
+import { getDashboardStats, getZones, getZonalSummary } from "../api/client";
+import { useAuth } from "../context/AuthContext";
 
 /**
  * e-Dossier — State Education Register
  * Admin overview dashboard.
  *
- * Replace MOCK_DATA below with data fetched from your Go backend
- * (e.g. GET /api/v1/admin/dashboard/stats).
+ * Headline totals and zonal summary stats are fetched live from the backend.
  */
 
+// Chart breakdown panels default/fallback data.
 const MOCK_DATA = {
-  asOf: "26 Jun 2026",
-  totals: {
-    schools: { value: 1248, delta: 3.2, period: "this term" },
-    staff: { value: 18420, delta: 1.4, period: "this term" },
-    students: { value: 612340, delta: -0.6, period: "this term" },
-    zones: { value: 6, delta: 0, period: "active zones" },
-  },
   schoolTypeSplit: [
     { name: "Primary", value: 742 },
     { name: "Junior Secondary", value: 318 },
@@ -46,6 +41,14 @@ const MOCK_DATA = {
     { zone: "North-Zone", schools: 211, staff: 2890, students: 104_600, ratio: 36.2 },
     { zone: "Southern-Zone", schools: 256, staff: 3980, students: 132_800, ratio: 33.4 },
   ],
+};
+
+// UI-only period labels for the headline stat cards
+const TOTAL_PERIODS = {
+  schools: "this session",
+  staff: "this session",
+  students: "this session",
+  zones: "active zones",
 };
 
 const COLORS = {
@@ -65,6 +68,14 @@ const PIE_COLORS = [COLORS.primary, COLORS.gold, COLORS.primaryLight];
 
 function formatNumber(n) {
   return new Intl.NumberFormat("en-NG").format(n);
+}
+
+// Report totals come back as `{ success: true, data: <int> }`.
+function unwrapList(res, key) {
+  const payload = res?.data;
+  if (Array.isArray(payload)) return payload;
+  const list = payload?.[key] ?? payload?.data;
+  return Array.isArray(list) ? list : [];
 }
 
 function StatEntry({ icon: Icon, label, value, delta, period, accent }) {
@@ -101,11 +112,16 @@ function StatEntry({ icon: Icon, label, value, delta, period, accent }) {
 
 function ZonalTable({ rows }) {
   const [sortKey, setSortKey] = useState("schools");
-  const sorted = useMemo(
-    () => [...rows].sort((a, b) => b[sortKey] - a[sortKey]),
-    [rows, sortKey]
-  );
-  const max = Math.max(...rows.map((r) => r.schools));
+  const validRows = Array.isArray(rows) ? rows : [];
+  const sorted = useMemo(() => {
+    return [...validRows].sort((a, b) => {
+      const valA = parseFloat(a[sortKey]) || 0;
+      const valB = parseFloat(b[sortKey]) || 0;
+      return valB - valA;
+    });
+  }, [validRows, sortKey]);
+
+  const max = Math.max(...validRows.map((r) => parseFloat(r.schools) || 0), 1);
 
   const columns = [
     { key: "schools", label: "Schools" },
@@ -113,6 +129,14 @@ function ZonalTable({ rows }) {
     { key: "students", label: "Students" },
     { key: "ratio", label: "Pupil:teacher" },
   ];
+
+  if (validRows.length === 0) {
+    return (
+      <div style={{ padding: "30px", textAlign: "center", color: COLORS.inkSoft, fontSize: "13px" }}>
+        No zonal summary data available.
+      </div>
+    );
+  }
 
   return (
     <div className="zonal-table-wrap">
@@ -132,8 +156,8 @@ function ZonalTable({ rows }) {
           </tr>
         </thead>
         <tbody>
-          {sorted.map((r) => (
-            <tr key={r.zone}>
+          {sorted.map((r, idx) => (
+            <tr key={r.zone || idx}>
               <td className="zonal-table__zone">
                 <MapPin size={13} strokeWidth={2} color={COLORS.gold} />
                 {r.zone}
@@ -143,16 +167,16 @@ function ZonalTable({ rows }) {
                   <div className="zonal-table__bar-track">
                     <div
                       className="zonal-table__bar-fill"
-                      style={{ width: `${(r.schools / max) * 100}%` }}
+                      style={{ width: `${Math.min(100, Math.max(0, ((parseFloat(r.schools) || 0) / max) * 100))}%` }}
                     />
                   </div>
-                  <span>{formatNumber(r.schools)}</span>
+                  <span>{formatNumber(r.schools || 0)}</span>
                 </div>
               </td>
-              <td>{formatNumber(r.staff)}</td>
-              <td>{formatNumber(r.students)}</td>
+              <td>{formatNumber(r.staff || 0)}</td>
+              <td>{formatNumber(r.students || 0)}</td>
               <td>
-                <span className="zonal-table__ratio">{r.ratio}</span>
+                <span className="zonal-table__ratio">{r.ratio ?? "—"}</span>
               </td>
             </tr>
           ))}
@@ -178,7 +202,123 @@ function CustomTooltip({ active, payload, label }) {
 }
 
 export default function AdminDashboard({ data = MOCK_DATA }) {
-  const { totals, schoolTypeSplit, zonalStats } = data;
+  const { schoolTypeSplit, zonalStats } = data;
+  const [liveTotals, setLiveTotals] = useState(null);
+  const [liveZonalStats, setLiveZonalStats] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+  const { user } = useAuth();
+  const authSchoolId = user?.school_id || user?.data?.school_id || null;
+
+  useEffect(() => {
+    let cancelled = false;
+
+    (async () => {
+      setLoading(true);
+      setError("");
+      try {
+        const [dashboardRes, zonesRes, zonalSummaryRes] = await Promise.allSettled([
+          getDashboardStats(),
+          getZones(user?.state_id),
+          getZonalSummary(user?.state_id, authSchoolId),
+        ]);
+
+        if (cancelled) return;
+
+        const count = (settled, label, unwrap) => {
+          if (settled.status === "rejected") {
+            console.error(`Failed to fetch total ${label}:`, settled.reason);
+            return null;
+          }
+          return unwrap(settled.value);
+        };
+
+        const zonesList = count(zonesRes, "zones", unwrapList);
+        const zonesCount = Array.isArray(zonesList) ? zonesList.length : null;
+
+        const dashboardStats = count(dashboardRes, "dashboard", (res) => {
+          const payload = res?.data?.data || res?.data || {};
+          return {
+            schools: typeof payload.total_schools === "number" ? payload.total_schools : null,
+            students: typeof payload.total_students === "number" ? payload.total_students : null,
+            staff: typeof payload.teaching_personnel === "number" ? payload.teaching_personnel : null,
+          };
+        });
+
+        // Parse zonal summary data
+        let zonalData = [];
+        if (zonalSummaryRes.status === "fulfilled") {
+          const raw = zonalSummaryRes.value?.data;
+          const list = Array.isArray(raw)
+            ? raw
+            : (raw?.data ?? raw?.zones ?? raw?.summary ?? raw?.zonal_summary ?? raw?.result ?? []);
+          if (Array.isArray(list) && list.length > 0) {
+            zonalData = list.map((item) => {
+              const zoneName = item.zone || item.zone_name || item.name || item.zonal_name || item.lga || item.lga_name || "—";
+              const schools = Number(item.schools ?? item.total_schools ?? item.school_count ?? item.num_schools ?? 0);
+              const staff = Number(item.staff ?? item.teaching_staff ?? item.total_personnel ?? item.personnel_count ?? item.staff_count ?? item.teachers ?? 0);
+              const students = Number(item.students ?? item.total_students ?? item.student_count ?? item.num_students ?? item.pupils ?? 0);
+              let ratio = item.ratio ?? item.pupil_teacher_ratio ?? item.ptr;
+              if (ratio == null || ratio === "—" || ratio === "") {
+                ratio = staff > 0 ? (students / staff).toFixed(1) : "—";
+              }
+              return { zone: zoneName, schools, staff, students, ratio };
+            });
+          }
+        }
+
+        // If zonal summary endpoint returned empty or failed, fallback to zonesList
+        if (zonalData.length === 0 && Array.isArray(zonesList) && zonesList.length > 0) {
+          zonalData = zonesList.map((z) => {
+            const zoneName = z.name || z.zone_name || z.zone || "—";
+            const schools = Number(z.total_schools ?? z.schools ?? 0);
+            const staff = Number(z.teaching_staff ?? z.staff ?? z.total_personnel ?? 0);
+            const students = Number(z.total_students ?? z.students ?? 0);
+            const ratio = z.ratio ?? (staff > 0 ? (students / staff).toFixed(1) : "—");
+            return { zone: zoneName, schools, staff, students, ratio };
+          });
+        }
+
+        setLiveTotals({
+          schools: { value: dashboardStats?.schools ?? 0, delta: 0, period: TOTAL_PERIODS.schools },
+          staff: { value: dashboardStats?.staff ?? 0, delta: 0, period: TOTAL_PERIODS.staff },
+          students: { value: dashboardStats?.students ?? 0, delta: 0, period: TOTAL_PERIODS.students },
+          zones: { value: zonesCount ?? zonalData.length ?? 0, delta: 0, period: TOTAL_PERIODS.zones },
+        });
+
+        if (zonalData.length > 0) {
+          setLiveZonalStats(zonalData);
+        }
+      } catch (err) {
+        console.error("Dashboard fetch error:", err);
+        setError("Failed to load live dashboard stats.");
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [user]);
+
+  // Headline totals come straight from the backend (liveTotals). While loading,
+  // show neutral zeroed placeholders so the stat cards render consistently.
+  const totals = useMemo(() => {
+    if (!liveTotals) {
+      return {
+        schools: { value: 0, delta: 0, period: TOTAL_PERIODS.schools },
+        staff: { value: 0, delta: 0, period: TOTAL_PERIODS.staff },
+        students: { value: 0, delta: 0, period: TOTAL_PERIODS.students },
+        zones: { value: 0, delta: 0, period: TOTAL_PERIODS.zones },
+      };
+    }
+    return liveTotals;
+  }, [liveTotals]);
+
+  const effectiveZonalStats = useMemo(() => {
+    return liveZonalStats && liveZonalStats.length > 0 ? liveZonalStats : zonalStats;
+  }, [liveZonalStats, zonalStats]);
 
   return (
     <div className="register">
@@ -418,119 +558,136 @@ export default function AdminDashboard({ data = MOCK_DATA }) {
         }
       `}</style>
 
-      <header className="register__header">
-        <div className="register__title-block">
-          <span className="register__eyebrow">e-Dossier ·Taraba State Ministry Of Education</span>
-          <h1 className="register__title">Admin Overview</h1>
+      {loading && (
+        <div style={{ padding: "60px", textAlign: "center", color: COLORS.inkSoft }}>
+          <div style={{ fontWeight: "600" }}>Loading dashboard...</div>
         </div>
-        <span className="register__asof">Records as of {data.asOf}</span>
-      </header>
+      )}
 
-      <section className="stat-grid">
-        <StatEntry
-          icon={School}
-          label="Registered schools"
-          value={totals.schools.value}
-          delta={totals.schools.delta}
-          period={totals.schools.period}
-          accent={COLORS.primary}
-        />
-        <StatEntry
-          icon={Users}
-          label="Teaching staff"
-          value={totals.staff.value}
-          delta={totals.staff.delta}
-          period={totals.staff.period}
-          accent={COLORS.gold}
-        />
-        <StatEntry
-          icon={GraduationCap}
-          label="Enrolled students"
-          value={totals.students.value}
-          delta={totals.students.delta}
-          period={totals.students.period}
-          accent={COLORS.primaryLight}
-        />
-        <StatEntry
-          icon={MapPin}
-          label="Zones covered"
-          value={totals.zones.value}
-          delta={totals.zones.delta}
-          period={totals.zones.period}
-          accent={COLORS.alert}
-        />
-      </section>
-
-      <section className="panel-grid">
-        <div className="panel">
-          <div className="panel__heading">
-            <h2 className="panel__title">Zonal breakdown</h2>
-            <span className="panel__hint">Click a column to sort</span>
-          </div>
-          <ZonalTable rows={zonalStats} />
+      {!loading && error && (
+        <div style={{ padding: "60px", textAlign: "center", color: COLORS.alert }}>
+          <div style={{ fontWeight: "600", marginBottom: "8px" }}>Error loading dashboard</div>
+          <div>{error}</div>
         </div>
+      )}
 
-        <div className="panel">
-          <div className="panel__heading">
-            <h2 className="panel__title">Schools by type</h2>
-          </div>
-          <ResponsiveContainer width="100%" height={200}>
-            <PieChart>
-              <Pie
-                data={schoolTypeSplit}
-                dataKey="value"
-                nameKey="name"
-                innerRadius={55}
-                outerRadius={80}
-                paddingAngle={2}
-                stroke="white"
-                strokeWidth={2}
-              >
-                {schoolTypeSplit.map((_, i) => (
-                  <Cell key={i} fill={PIE_COLORS[i % PIE_COLORS.length]} />
+      {!loading && !error && (
+        <>
+          <header className="register__header">
+            <div className="register__title-block">
+              <span className="register__eyebrow">e-Dossier ·Taraba State Ministry Of Education</span>
+              <h1 className="register__title">Admin Overview</h1>
+            </div>
+            <span className="register__asof">Records as of {liveTotals ? new Date().toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" }) : data.asOf}</span>
+          </header>
+
+          <section className="stat-grid">
+            <StatEntry
+              icon={School}
+              label="Registered Schools"
+              value={totals.schools.value}
+              delta={totals.schools.delta}
+              period={totals.schools.period}
+              accent={COLORS.primary}
+            />
+            <StatEntry
+              icon={Users}
+              label="Teaching staff"
+              value={totals.staff.value}
+              delta={totals.staff.delta}
+              period={totals.staff.period}
+              accent={COLORS.gold}
+            />
+            <StatEntry
+              icon={GraduationCap}
+              label="Enrolled students"
+              value={totals.students.value}
+              delta={totals.students.delta}
+              period={totals.students.period}
+              accent={COLORS.primaryLight}
+            />
+            <StatEntry
+              icon={MapPin}
+              label="Zones covered"
+              value={totals.zones.value}
+              delta={totals.zones.delta}
+              period={totals.zones.period}
+              accent={COLORS.alert}
+            />
+          </section>
+
+          <section className="panel-grid">
+            <div className="panel">
+              <div className="panel__heading">
+                <h2 className="panel__title">Zonal breakdown</h2>
+                <span className="panel__hint">Click a column to sort</span>
+              </div>
+              <ZonalTable rows={effectiveZonalStats} />
+            </div>
+
+            <div className="panel">
+              <div className="panel__heading">
+                <h2 className="panel__title">Schools by type</h2>
+              </div>
+              <ResponsiveContainer width="100%" height={200}>
+                <PieChart>
+                  <Pie
+                    data={schoolTypeSplit}
+                    dataKey="value"
+                    nameKey="name"
+                    innerRadius={55}
+                    outerRadius={80}
+                    paddingAngle={2}
+                    stroke="white"
+                    strokeWidth={2}
+                  >
+                    {schoolTypeSplit.map((_, i) => (
+                      <Cell key={i} fill={PIE_COLORS[i % PIE_COLORS.length]} />
+                    ))}
+                  </Pie>
+                  <Tooltip content={<CustomTooltip />} />
+                </PieChart>
+              </ResponsiveContainer>
+              <div className="legend-row">
+                {schoolTypeSplit.map((s, i) => (
+                  <span className="legend-row__item" key={s.name}>
+                    <span
+                      className="legend-row__dot"
+                      style={{ background: PIE_COLORS[i % PIE_COLORS.length] }}
+                    />
+                    {s.name} · {formatNumber(s.value)}
+                  </span>
                 ))}
-              </Pie>
-              <Tooltip content={<CustomTooltip />} />
-            </PieChart>
-          </ResponsiveContainer>
-          <div className="legend-row">
-            {schoolTypeSplit.map((s, i) => (
-              <span className="legend-row__item" key={s.name}>
-                <span
-                  className="legend-row__dot"
-                  style={{ background: PIE_COLORS[i % PIE_COLORS.length] }}
-                />
-                {s.name} · {formatNumber(s.value)}
-              </span>
-            ))}
-          </div>
-        </div>
-      </section>
+              </div>
+            </div>
+          </section>
 
-      <section className="panel">
-        <div className="panel__heading">
-          <h2 className="panel__title">Students enrolled, by zone</h2>
-        </div>
-        <ResponsiveContainer width="100%" height={260}>
-          <BarChart data={zonalStats} margin={{ top: 4, right: 8, left: 0, bottom: 0 }}>
-            <CartesianGrid vertical={false} stroke={COLORS.line} />
-            <XAxis
-              dataKey="zone"
-              tick={{ fontSize: 12, fill: COLORS.inkSoft }}
-              axisLine={{ stroke: COLORS.line }}
-              tickLine={false}
-            />
-            <YAxis
-              tick={{ fontSize: 12, fill: COLORS.inkSoft }}
-              axisLine={false}
-              tickLine={false}
-              tickFormatter={(v) => `${v / 1000}k`}
-            />
-            <Tooltip content={<CustomTooltip />} cursor={{ fill: COLORS.sage }} />
-            <Bar dataKey="students" name="Students" fill={COLORS.primary} radius={[3, 3, 0, 0]} />
-          </BarChart>
-        </ResponsiveContainer>
-      </section>
+          <section className="panel">
+            <div className="panel__heading">
+              <h2 className="panel__title">Students enrolled, by zone</h2>
+            </div>
+            <ResponsiveContainer width="100%" height={260}>
+              <BarChart data={effectiveZonalStats} margin={{ top: 4, right: 8, left: 0, bottom: 0 }}>
+                <CartesianGrid vertical={false} stroke={COLORS.line} />
+                <XAxis
+                  dataKey="zone"
+                  tick={{ fontSize: 12, fill: COLORS.inkSoft }}
+                  axisLine={{ stroke: COLORS.line }}
+                  tickLine={false}
+                />
+                <YAxis
+                  tick={{ fontSize: 12, fill: COLORS.inkSoft }}
+                  axisLine={false}
+                  tickLine={false}
+                  tickFormatter={(v) => `${v / 1000}k`}
+                />
+                <Tooltip content={<CustomTooltip />} cursor={{ fill: COLORS.sage }} />
+                <Bar dataKey="students" name="Students" fill={COLORS.primary} radius={[3, 3, 0, 0]} />
+              </BarChart>
+            </ResponsiveContainer>
+          </section>
+        </>
+      )}
     </div>
   );
 }

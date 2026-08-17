@@ -11,6 +11,7 @@ export const AuthProvider = ({ children }) => {
   const fetchUser = useCallback(async () => {
     if (!token) {
       setLoading(false);
+      setUser(null);
       return;
     }
     
@@ -30,9 +31,9 @@ export const AuthProvider = ({ children }) => {
     
     try {
       const response = await getMe();
-      setUser(response.data);
+      setUser(response.data?.data || response.data);
     } catch (error) {
-      console.error('Failed to fetch user session:', error);
+      console.warn('Failed to fetch user session:', error?.message || error);
       localStorage.removeItem('access_token');
       localStorage.removeItem('refresh_token');
       localStorage.removeItem('student_session');
@@ -111,7 +112,16 @@ export const AuthProvider = ({ children }) => {
 export const useAuth = () => {
   const context = useContext(AuthContext);
   if (!context) {
-    throw new Error('useAuth must be used within an AuthProvider');
+    return {
+      user: null,
+      token: localStorage.getItem('access_token'),
+      loading: false,
+      login: async () => {},
+      studentLogin: async () => {},
+      register: async () => {},
+      logout: async () => {},
+      isAuthenticated: false,
+    };
   }
   return context;
 };

@@ -1,9 +1,9 @@
 import axios from 'axios';
 
-const API_BASE_URL = 'http://localhost:34005';
-
+// Endpoint paths below already include the `/api` prefix, so the baseURL must
+// stay empty — requests go to the dev-server/origin and the proxy forwards them.
 const api = axios.create({
-  baseURL: API_BASE_URL,
+  baseURL: '',
   headers: {
     'Content-Type': 'application/json',
   },
@@ -174,7 +174,8 @@ export const deleteRole = (id) => api.delete(`/api/v1/roles/${id}`);
 // --- Sessions ---
 export const getSessions = (page = 1, limit = 10, schoolId = null) =>
   api.get('/api/v1/sessions', { params: schoolId ? { page, limit, school_id: schoolId } : { page, limit } });
-export const getActiveSession = () => api.get('/api/v1/sessions/active');
+export const getActiveSession = (schoolId = null) =>
+  api.get('/api/v1/sessions/active', schoolId ? { params: { school_id: schoolId } } : {});
 export const getSession = (id) => api.get(`/api/v1/sessions/${id}`);
 export const createSession = (data, schoolId = null) =>
   api.post('/api/v1/sessions', data, schoolId ? { params: { school_id: schoolId } } : undefined);
@@ -185,6 +186,8 @@ export const deleteSession = (id) => api.delete(`/api/v1/sessions/${id}`);
 
 // --- Terms ---
 export const getTerms = () => api.get('/api/v1/terms');
+export const getActiveTerm = (sessionId, schoolId = null) =>
+  api.get('/api/v1/terms/active', schoolId ? { params: { session_id: sessionId, school_id: schoolId } } : (sessionId ? { params: { session_id: sessionId } } : {}));
 export const createTerm = (data) => api.post('/api/v1/terms', data);
 export const getTerm = (id) => api.get(`/api/v1/terms/${id}`);
 export const updateTerm = (id, data) => api.put(`/api/v1/terms/${id}`, data);
@@ -208,7 +211,7 @@ export const getLevelSubLevels = (levelId) => api.get(`/api/v1/levels/${levelId}
 
 // --- Sublevels ---
 export const getSublevels = () => api.get('/api/v1/sublevels');
-export const getSublevelsByLevel = (schoolId, levelId) => api.get(`/api/v1/schools/${schoolId}/levels/${levelId}/sub-levels`);
+export const getSublevelsByLevel = (schoolId, levelId) => api.get(`/api/v1/levels/${levelId}/sub-levels`);
 export const createSublevel = (schoolId, levelId, data) => {
   const params = new URLSearchParams();
   if (schoolId) params.set('school_id', schoolId);
@@ -228,6 +231,11 @@ export const createSubject = (data) => api.post('/api/v1/subjects', data);
 export const getSubject = (id) => api.get(`/api/v1/subjects/${id}`);
 export const updateSubject = (id, data) => api.put(`/api/v1/subjects/${id}`, data);
 export const deleteSubject = (id) => api.delete(`/api/v1/subjects/${id}`);
+
+export const getSchoolSubjects = (schoolId, sessionId, levelId) => api.get('/api/v1/schools/' + schoolId + '/subjects', { params: { session_id: sessionId, level_id: levelId } });
+export const assignSubjectToSchool = (schoolId, data) => api.post('/api/v1/schools/' + schoolId + '/subjects', data);
+export const updateSchoolSubject = (id, data) => api.put('/api/v1/school-subjects/' + id, data);
+export const removeSchoolSubject = (id) => api.delete('/api/v1/school-subjects/' + id);
 
 // --- Permissions ---
 export const getPermissions = () => api.get('/api/v1/permissions');
@@ -249,8 +257,23 @@ export const updateState = (id, data) => api.put(`/api/v1/states/${id}`, data);
 export const deleteState = (id) => api.delete(`/api/v1/states/${id}`);
 
 // --- Zones ---
-export const getZones = () => api.get('/api/v1/zones');
-export const getStateZones = (id) => api.get(`/api/v1/states/${id}/zones`);
+export const getZones = async (stateId) => {
+  try {
+    if (stateId) {
+      return await api.get(`/api/v1/states/${stateId}/zones`);
+    }
+    return await api.get('/api/v1/zones');
+  } catch (err) {
+    return { data: { data: [], zones: [] } };
+  }
+};
+export const getStateZones = async (id) => {
+  try {
+    return await api.get(`/api/v1/states/${id}/zones`);
+  } catch (err) {
+    return { data: { data: [], zones: [] } };
+  }
+};
 export const getZone = (id) => api.get(`/api/v1/zones/${id}`);
 export const createStateZone = (stateId, data) => api.post(`/api/v1/states/${stateId}/zones`, data);
 export const updateZone = (id, data) => api.put(`/api/v1/zones/${id}`, data);
@@ -270,13 +293,29 @@ export const updateFacility = (schoolId, facilityId, data) => api.put(`/api/v1/s
 export const deleteFacility = (schoolId, facilityId) => api.delete(`/api/v1/schools/${schoolId}/facilities/${facilityId}`);
 
 // --- Reports ---
-export const getTPTotal = () => api.get('/api/v1/reports/public/teaching-personnel');
-export const getGenderTotal = () => api.get('/api/v1/reports/gender/total');
-export const getTotalStudents = () => api.get('/api/v1/reports/students/total');
-export const getTotalSchools = () => api.get('/api/v1/reports/schools/total');
+export const getTPTotal = (stateId) => api.get('/api/v1/reports/public/teaching-personnel', stateId ? { params: { state_id: stateId } } : {});
+export const getTotalStudents = (stateId) => api.get('/api/v1/reports/students/total', stateId ? { params: { state_id: stateId } } : {});
+export const getTotalSchools = (stateId) => api.get('/api/v1/reports/schools/total', stateId ? { params: { state_id: stateId } } : {});
+export const getTotalPersonnel = (stateId) => api.get('/api/v1/reports/personnel/total', stateId ? { params: { state_id: stateId } } : {});
+export const getZonalSummary = async (stateId, schoolId) => {
+  // Backend route /api/v1/reports/zonal/summary is school-scoped and requires school_id.
+  // If school_id is not provided, return an empty result immediately to avoid 400 Bad Request errors.
+  if (!schoolId) {
+    return { data: { data: [], summary: [], zones: [] } };
+  }
+
+  const params = { school_id: schoolId };
+  if (stateId) params.state_id = stateId;
+
+  try {
+    return await api.get('/api/v1/reports/zonal/summary', { params });
+  } catch {
+    return { data: { data: [], summary: [], zones: [] } };
+  }
+};
 
 // --- Dashboard ---
-export const getDashboardStats = () => api.get('/api/v1/dashboard/stats');
+export const getDashboardStats = () => api.get('/api/v1/reports/dashboard/stats');
 
 // --- Personnel ---
 export const getPersonnel = (page = 1, limit = 10, params = {}) => api.get('/api/v1/personnel', { params: { page, limit, ...params } });
@@ -286,7 +325,6 @@ export const updatePersonnel = (id, data) => api.put(`/api/v1/personnel/${id}`, 
 export const deletePersonnel = (id) => api.delete(`/api/v1/personnel/${id}`);
 export const transferPersonnel = (id, data) => api.post(`/api/v1/personnel/${id}/transfer`, data);
 export const getPersonnelTransfers = (id) => api.get(`/api/v1/personnel/${id}/transfers`);
-export const getTotalPersonnel = (params = {}) => api.get('/api/v1/reports/personnel/total', { params });
 
 // --- Students ---
 export const getStudents = (page = 1, limit = 10, params = {}) => api.get('/api/v1/students', { params: { page, limit, ...params } });
@@ -315,6 +353,7 @@ export const getStudentAllReportCards = (studentId) => api.get(`/api/v1/students
 export const getStudentCurrentReportCard = (studentId) => api.get(`/api/v1/students/${studentId}/report-card`);
 export const updateReportCardRemarks = (id, data) => api.put(`/api/v1/results/report-cards/${id}/remarks`, data);
 export const publishReportCard = (id) => api.post(`/api/v1/results/report-cards/${id}/publish`, {});
+export const deleteReportCard = (id) => api.delete(`/api/v1/results/report-cards/${id}`);
 
 // --- Score & Grade Configuration ---
 export const upsertScoreConfig = (data) => api.post('/api/v1/results/score-config', data);
@@ -332,16 +371,84 @@ export const uploadPersonnelAvatar = (id, file) => {
   const formData = new FormData();
   formData.append('file', file);
   return api.put(`/api/v1/avatar/personnel/${id}`, formData, {
-    headers: { 'Content-Type': 'multipart/form-data' }
+    headers: { 'Content-Type': undefined }
   });
 };
 export const uploadStudentAvatar = (id, file) => {
   const formData = new FormData();
   formData.append('file', file);
   return api.put(`/api/v1/avatar/students/${id}`, formData, {
-    headers: { 'Content-Type': 'multipart/form-data' }
+    headers: { 'Content-Type': undefined }
   });
 };
+export const uploadSchoolLogo = async (id, file) => {
+  const formData = new FormData();
+  formData.append('file', file);
+  try {
+    return await api.put(`/api/v1/avatar/schools/${id}`, formData, {
+      headers: { 'Content-Type': undefined }
+    });
+  } catch (err) {
+    if (err?.response?.status === 404) {
+      try {
+        return await api.put(`/api/v1/schools/${id}/logo`, formData, {
+          headers: { 'Content-Type': undefined }
+        });
+      } catch (err2) {
+        if (err2?.response?.status === 404) {
+          return await api.put(`/api/v1/avatar/school/${id}`, formData, {
+            headers: { 'Content-Type': undefined }
+          });
+        }
+        throw err2;
+      }
+    }
+    throw err;
+  }
+};
+
+
+export const getSchoolPrediction = (schoolId) =>
+  api.get(`/api/v1/predictions/schools/${schoolId}`);
+ 
+export const getFullPredictionReport = (schoolId, sessionId = "") =>
+  api.get(
+    `/api/v1/predictions/schools/${schoolId}/full${sessionId ? `?session_id=${sessionId}` : ""}`
+  );
+ 
+export const getStudentPrediction = (schoolId, studentId) =>
+  api.get(`/api/v1/predictions/schools/${schoolId}/students/${studentId}`);
+
+export const recordPersonnelAttendance = (data) =>
+  api.post('/api/v1/attendance/personnel/', data);
+export const getPersonnelAttendanceById = (id) =>
+  api.get(`/api/v1/attendance/personnel/${id}`);
+export const updatePersonnelAttendance = (id, data) =>
+  api.put(`/api/v1/attendance/personnel/${id}`, data);
+export const deletePersonnelAttendance = (id) =>
+  api.delete(`/api/v1/attendance/personnel/${id}`);
+export const listPersonnelAttendanceBySchoolAndDate = (schoolId, date) =>
+  api.get('/api/v1/attendance/personnel/school', { params: { school_id: schoolId, date } });
+export const listPersonnelAttendanceByPersonnelRange = (personnelId, from, to) =>
+  api.get(`/api/v1/attendance/personnel/${personnelId}/range`, { params: { from, to } });
+
+// --- Student Attendance ---
+export const recordStudentAttendance = (data) =>
+  api.post('/api/v1/attendance/students/', data);
+export const getStudentAttendanceById = (id) =>
+  api.get(`/api/v1/attendance/students/${id}`);
+export const updateStudentAttendance = (id, data) =>
+  api.put(`/api/v1/attendance/students/${id}`, data);
+export const deleteStudentAttendance = (id) =>
+  api.delete(`/api/v1/attendance/students/${id}`);
+export const listStudentAttendanceBySchoolAndDate = (schoolId, date) =>
+  api.get('/api/v1/attendance/students/school', { params: { school_id: schoolId, date } });
+export const listStudentAttendanceByStudentRange = (studentId, from, to) =>
+  api.get(`/api/v1/attendance/students/student/${studentId}/range`, { params: { from, to } });
+
+// --- Recommendations ---
+export const getRecommendations = () => api.get('/api/v1/recommendations');
+
 
 // Extract a human-readable error message from an axios error.
 // Backend error shape: { success: false, error: { code, message, details } }
