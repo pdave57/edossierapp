@@ -88,6 +88,8 @@ const NAV_GROUPS = [
   {
     id: "state-setup",
     label: "State setup",
+    accordion: true,
+    defaultOpen: false,
     items: [
       { key: "zones", label: "Zones", icon: Map },
       { key: "lgas", label: "LGAs", icon: Landmark },
@@ -115,19 +117,19 @@ const NAV_GROUPS = [
     accordion: true,
     defaultOpen: false,
     items: [
-      { key: "register-student",   label: "Register Student",  icon: UserPlus },
+      { key: "register-student", label: "Register Student", icon: UserPlus },
       // { key: "add-enrollment",  label: "Add Enrollment",    icon: UserPlus },
       // { key: "student-dashboard", label: "Student Dashboard", icon: GraduationCap },
       // { key: "student-profile", label: "Student Profile",   icon: GraduationCap },
-      { key: "student-management", label: "Students",          icon: GraduationCap },
-      { key: "student-attendance", label: "Attendance",        icon: CalendarDays },
+      { key: "student-management", label: "Students", icon: GraduationCap },
+      { key: "student-attendance", label: "Attendance", icon: CalendarDays },
     ],
   },
   {
     id: "exams",
     label: "Exams",
     accordion: true,
-    defaultOpen: false,    
+    defaultOpen: false,
     items: [
       { key: "exams", label: "Exams", icon: FileSpreadsheet },
       { key: "score-config", label: "Score Config", icon: FileSpreadsheet },
@@ -135,30 +137,28 @@ const NAV_GROUPS = [
       { key: "score-sheet", label: "Score Sheet", icon: FileSpreadsheet },
       { key: "report-cards", label: "Report Cards", icon: FileSpreadsheet },
     ],
-  },  
-  {
-    id: "predictions",
-    label: "Predictions",
-    items: [
-      { key: "predictions", label: "Predictions", icon: FileSpreadsheet },
-    ],
   },
   {
-    id: "recommendations",
-    label: "Recommendations",
+    id: "stats",
+    label: "Statistics",
+    accordion: true,
+    defaultOpen: false,
     items: [
+      { key: "predictions", label: "Predictions", icon: FileSpreadsheet },
       { key: "recommendation", label: "Recommendations", icon: TrendingUp },
     ],
   },
   {
     id: "personnel",
     label: "Personnel",
+    accordion: true,
+    defaultOpen: false,
     items: [
       { key: "personnel", label: "Personnel", icon: UsersIcon },
       { key: "personnel-attendance", label: "Attendance", icon: UsersIcon },
     ],
   },
- 
+
 ];
 
 /**
@@ -526,7 +526,7 @@ export default function AdminSidebar({
 
       <div className="admin-sidebar__brand">
         <span className="admin-sidebar__brand-mark">
-          <img src="/images/logomoe.jpg"alt="Taraba State Ministry of Education crest" />
+          <img src="/images/logomoe.jpg" alt="Taraba State Ministry of Education crest" />
         </span>
         <div className="admin-sidebar__brand-text">
           <span className="admin-sidebar__brand-title">Ministry of Education</span>
@@ -573,7 +573,7 @@ export default function AdminSidebar({
         />
       ))}
 
-      
+
     </nav>
   );
 }
