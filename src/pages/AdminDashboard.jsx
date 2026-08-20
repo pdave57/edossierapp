@@ -70,6 +70,20 @@ function formatNumber(n) {
   return new Intl.NumberFormat("en-NG").format(n);
 }
 
+function safeDiv(num, den) {
+  return den > 0 ? num / den : null;
+}
+
+function fmtRatio(numerator, denominator) {
+  const ratio = safeDiv(numerator, denominator);
+  return ratio == null ? "—" : `${formatNumber(ratio)}:1`;
+}
+
+function fmtPer(numerator, denominator, unit) {
+  const value = safeDiv(numerator, denominator);
+  return value == null ? "—" : `${formatNumber(value)} / ${unit}`;
+}
+
 // Report totals come back as `{ success: true, data: <int> }`.
 function unwrapList(res, key) {
   const payload = res?.data;
@@ -78,7 +92,7 @@ function unwrapList(res, key) {
   return Array.isArray(list) ? list : [];
 }
 
-function StatEntry({ icon: Icon, label, value, delta, period, accent }) {
+function StatEntry({ icon: Icon, label, value, delta, period, secondary, accent }) {
   const isUp = delta > 0;
   const isFlat = delta === 0;
   return (
@@ -92,10 +106,10 @@ function StatEntry({ icon: Icon, label, value, delta, period, accent }) {
       <div className="stat-entry__value">{formatNumber(value)}</div>
       <div className="stat-entry__rule" />
       <div className="stat-entry__foot">
-        {!isFlat && (
-          <span
-            className={`stat-entry__delta ${isUp ? "is-up" : "is-down"}`}
-          >
+        {secondary ? (
+          <span className="stat-entry__secondary">{secondary}</span>
+        ) : !isFlat ? (
+          <span className={`stat-entry__delta ${isUp ? "is-up" : "is-down"}`}>
             {isUp ? (
               <ArrowUpRight size={13} strokeWidth={2.5} />
             ) : (
@@ -103,7 +117,7 @@ function StatEntry({ icon: Icon, label, value, delta, period, accent }) {
             )}
             {Math.abs(delta)}%
           </span>
-        )}
+        ) : null}
         <span className="stat-entry__period">{period}</span>
       </div>
     </div>
@@ -207,6 +221,7 @@ export default function AdminDashboard({ data = MOCK_DATA }) {
   const [liveZonalStats, setLiveZonalStats] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [asOf, setAsOf] = useState(null);
   const { user } = useAuth();
   const authSchoolId = user?.school_id || user?.data?.school_id || null;
 
@@ -279,12 +294,52 @@ export default function AdminDashboard({ data = MOCK_DATA }) {
           });
         }
 
+        // Aggregate the per-zone zonal summary so the headline totals stay
+        // consistent with the Zonal breakdown table. Used as a fallback when
+        // the dedicated dashboard-stats endpoint returns an incomplete value.
+        const aggregated = zonalData.reduce(
+          (acc, z) => {
+            acc.schools += Math.max(0, z.schools || 0);
+            acc.staff += Math.max(0, z.staff || 0);
+            acc.students += Math.max(0, z.students || 0);
+            return acc;
+          },
+          { schools: 0, staff: 0, students: 0 }
+        );
+
+        const totalSchools = dashboardStats?.schools ?? aggregated.schools;
+        const totalStaff = dashboardStats?.staff ?? aggregated.staff;
+        const totalStudents = dashboardStats?.students ?? aggregated.students;
+        const totalZones = zonesCount ?? (zonalData.length || null);
+
         setLiveTotals({
-          schools: { value: dashboardStats?.schools ?? 0, delta: 0, period: TOTAL_PERIODS.schools },
-          staff: { value: dashboardStats?.staff ?? 0, delta: 0, period: TOTAL_PERIODS.staff },
-          students: { value: dashboardStats?.students ?? 0, delta: 0, period: TOTAL_PERIODS.students },
-          zones: { value: zonesCount ?? zonalData.length ?? 0, delta: 0, period: TOTAL_PERIODS.zones },
+          schools: {
+            value: totalSchools ?? 0,
+            delta: 0,
+            period: TOTAL_PERIODS.schools,
+            secondary: fmtPer(totalStudents, totalSchools, "school"),
+          },
+          staff: {
+            value: totalStaff ?? 0,
+            delta: 0,
+            period: TOTAL_PERIODS.staff,
+            secondary: fmtRatio(totalStudents, totalStaff),
+          },
+          students: {
+            value: totalStudents ?? 0,
+            delta: 0,
+            period: TOTAL_PERIODS.students,
+            secondary: fmtPer(totalStudents, totalZones, "zone"),
+          },
+          zones: {
+            value: totalZones ?? 0,
+            delta: 0,
+            period: TOTAL_PERIODS.zones,
+            secondary: fmtPer(totalSchools, totalZones, "zone"),
+          },
         });
+
+        setAsOf(new Date());
 
         if (zonalData.length > 0) {
           setLiveZonalStats(zonalData);
@@ -307,10 +362,10 @@ export default function AdminDashboard({ data = MOCK_DATA }) {
   const totals = useMemo(() => {
     if (!liveTotals) {
       return {
-        schools: { value: 0, delta: 0, period: TOTAL_PERIODS.schools },
-        staff: { value: 0, delta: 0, period: TOTAL_PERIODS.staff },
-        students: { value: 0, delta: 0, period: TOTAL_PERIODS.students },
-        zones: { value: 0, delta: 0, period: TOTAL_PERIODS.zones },
+        schools: { value: 0, delta: 0, period: TOTAL_PERIODS.schools, secondary: "—" },
+        staff: { value: 0, delta: 0, period: TOTAL_PERIODS.staff, secondary: "—" },
+        students: { value: 0, delta: 0, period: TOTAL_PERIODS.students, secondary: "—" },
+        zones: { value: 0, delta: 0, period: TOTAL_PERIODS.zones, secondary: "—" },
       };
     }
     return liveTotals;
@@ -437,6 +492,11 @@ export default function AdminDashboard({ data = MOCK_DATA }) {
         }
         .stat-entry__delta.is-up { color: ${COLORS.primaryText}; background: ${COLORS.sage}; }
         .stat-entry__delta.is-down { color: ${COLORS.alert}; background: #F7E9E9; }
+        .stat-entry__secondary {
+          font-variant-numeric: tabular-nums;
+          font-weight: 600;
+          color: ${COLORS.inkSoft};
+        }
         .stat-entry__period { color: ${COLORS.inkSoft}; }
 
         .panel-grid {
@@ -573,48 +633,59 @@ export default function AdminDashboard({ data = MOCK_DATA }) {
 
       {!loading && !error && (
         <>
-          <header className="register__header">
-            <div className="register__title-block">
-              <span className="register__eyebrow">e-Dossier ·Taraba State Ministry Of Education</span>
-              <h1 className="register__title">Admin Overview</h1>
-            </div>
-            <span className="register__asof">Records as of {liveTotals ? new Date().toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" }) : data.asOf}</span>
-          </header>
+           <header className="register__header">
+             <div className="register__title-block">
+               <span className="register__eyebrow">e-Dossier ·Taraba State Ministry Of Education</span>
+               <h1 className="register__title">Admin Overview</h1>
+             </div>
+             <span className="register__asof">
+               Records as of{" "}
+               {(asOf || new Date()).toLocaleDateString("en-GB", {
+                 day: "numeric",
+                 month: "short",
+                 year: "numeric",
+               })}
+             </span>
+           </header>
 
-          <section className="stat-grid">
-            <StatEntry
-              icon={School}
-              label="Registered Schools"
-              value={totals.schools.value}
-              delta={totals.schools.delta}
-              period={totals.schools.period}
-              accent={COLORS.primary}
-            />
-            <StatEntry
-              icon={Users}
-              label="Teaching staff"
-              value={totals.staff.value}
-              delta={totals.staff.delta}
-              period={totals.staff.period}
-              accent={COLORS.gold}
-            />
-            <StatEntry
-              icon={GraduationCap}
-              label="Enrolled students"
-              value={totals.students.value}
-              delta={totals.students.delta}
-              period={totals.students.period}
-              accent={COLORS.primaryLight}
-            />
-            <StatEntry
-              icon={MapPin}
-              label="Zones covered"
-              value={totals.zones.value}
-              delta={totals.zones.delta}
-              period={totals.zones.period}
-              accent={COLORS.alert}
-            />
-          </section>
+           <section className="stat-grid">
+             <StatEntry
+               icon={School}
+               label="Registered Schools"
+               value={totals.schools.value}
+               delta={totals.schools.delta}
+               period={totals.schools.period}
+               secondary={totals.schools.secondary}
+               accent={COLORS.primary}
+             />
+             <StatEntry
+               icon={Users}
+               label="Teaching staff"
+               value={totals.staff.value}
+               delta={totals.staff.delta}
+               period={totals.staff.period}
+               secondary={totals.staff.secondary}
+               accent={COLORS.gold}
+             />
+             <StatEntry
+               icon={GraduationCap}
+               label="Enrolled students"
+               value={totals.students.value}
+               delta={totals.students.delta}
+               period={totals.students.period}
+               secondary={totals.students.secondary}
+               accent={COLORS.primaryLight}
+             />
+             <StatEntry
+               icon={MapPin}
+               label="Zones covered"
+               value={totals.zones.value}
+               delta={totals.zones.delta}
+               period={totals.zones.period}
+               secondary={totals.zones.secondary}
+               accent={COLORS.alert}
+             />
+           </section>
 
           <section className="panel-grid">
             <div className="panel">

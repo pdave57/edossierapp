@@ -298,14 +298,14 @@ export const getTotalStudents = (stateId) => api.get('/api/v1/reports/students/t
 export const getTotalSchools = (stateId) => api.get('/api/v1/reports/schools/total', stateId ? { params: { state_id: stateId } } : {});
 export const getTotalPersonnel = (stateId) => api.get('/api/v1/reports/personnel/total', stateId ? { params: { state_id: stateId } } : {});
 export const getZonalSummary = async (stateId, schoolId) => {
-  // Backend route /api/v1/reports/zonal/summary is school-scoped and requires school_id.
-  // If school_id is not provided, return an empty result immediately to avoid 400 Bad Request errors.
-  if (!schoolId) {
+  const params = {};
+  if (schoolId) {
+    params.school_id = schoolId;
+  } else if (stateId) {
+    params.state_id = stateId;
+  } else {
     return { data: { data: [], summary: [], zones: [] } };
   }
-
-  const params = { school_id: schoolId };
-  if (stateId) params.state_id = stateId;
 
   try {
     return await api.get('/api/v1/reports/zonal/summary', { params });
@@ -343,6 +343,8 @@ export const updateEnrollment = (id, data) => api.put(`/api/v1/enrollments/${id}
 export const upsertScore = (data) => api.post('/api/v1/results/scores', data);
 export const bulkUpsertScores = (data) => api.post('/api/v1/results/scores/bulk', data);
 export const computePositions = (data) => api.post('/api/v1/results/scores/compute-positions', data);
+export const computePositionsBulk = (termId, subLevelId) => api.post('/api/v1/results/scores/compute-positions-bulk', null, { params: { term_id: termId, sub_level_id: subLevelId } });
+export const getClassSubjectStats = (termId, subLevelId) => api.get('/api/v1/results/scores/class-stats', { params: { term_id: termId, sub_level_id: subLevelId } });
 export const getStudentScores = (studentId, params = {}) => api.get(`/api/v1/students/${studentId}/scores`, { params });
 
 // --- Report Cards ---

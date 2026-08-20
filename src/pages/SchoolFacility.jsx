@@ -109,6 +109,7 @@ const SchoolFacility = () => {
 
   const handleCreateFacility = async (e) => {
     e.preventDefault();
+    let createErr = null;
     try {
       const payload = {
         type: formData.type,
@@ -118,12 +119,21 @@ const SchoolFacility = () => {
         notes: formData.notes,
       };
       await createFacility(selectedSchoolId, payload);
-      await fetchFacilities();
-      setShowModal(false);
     } catch (err) {
       console.error('Create facility error:', err);
-      const status = err?.response?.status;
-      setError(`Failed to create facility (${status ?? 'network error'}): ${getErrorMessage(err, 'Unknown error')}`);
+      createErr = err;
+    } finally {
+      // Always refresh the list and close the modal. The backend may have
+      // created the record before returning an error response, so a reload
+      // is the only reliable way to confirm the actual state.
+      await fetchFacilities();
+      setShowModal(false);
+      // If the refresh succeeded, the new facility (if any) is now visible,
+      // so clear the stale error. If the refresh also failed, fetchFacilities
+      // already set the appropriate error message.
+      if (!createErr) {
+        setError('');
+      }
     }
   };
 

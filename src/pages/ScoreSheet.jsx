@@ -5,6 +5,7 @@ import {
   getEnrollments,
   getStudentScores,
   getStudent,
+  upsertScore,
   bulkUpsertScores,
   getSessions,
   getTerms,
@@ -47,6 +48,7 @@ const ScoreSheet = () => {
   const [students, setStudents] = useState([]);
   const [scores, setScores] = useState({});
   const [editingExam, setEditingExam] = useState({});
+  const [updatingId, setUpdatingId] = useState(null);
   const [focusTarget, setFocusTarget] = useState(null);
   const allSublevelsRef = useRef([]);
 
@@ -199,16 +201,41 @@ const ScoreSheet = () => {
         try {
           const scoreRes = await getStudentScores(student.id, { session_id: formData.session_id });
           const scoreList = Array.isArray(scoreRes.data) ? scoreRes.data : (scoreRes.data?.data ?? []);
-          const subjectScore = scoreList.find((s) => s.subject_id === formData.subject_id && s.term_id === formData.term_id);
+          const subjectScore = scoreList.find((s) => String(s.subject_id) === String(formData.subject_id) && String(s.term_id) === String(formData.term_id));
           if (subjectScore) {
+            const ca1 = subjectScore.ca1_score !== null && subjectScore.ca1_score !== undefined ? Number(subjectScore.ca1_score) : '';
+            const ca2 = subjectScore.ca2_score !== null && subjectScore.ca2_score !== undefined ? Number(subjectScore.ca2_score) : '';
+            const ca3 = subjectScore.ca3_score !== null && subjectScore.ca3_score !== undefined ? Number(subjectScore.ca3_score) : '';
+            const exam = subjectScore.exam_score !== null && subjectScore.exam_score !== undefined ? Number(subjectScore.exam_score) : '';
+            
+            let total = subjectScore.total_score ?? 0;
+            let grade = subjectScore.grade ?? '';
+            let remark = subjectScore.remark ?? '';
+
+            // Recompute total/grade/remark from the captured scores whenever the
+            // stored values are missing, so every student with scores gets a
+            // grade and remark (the backend may not have computed them).
+            const hasScores = ca1 !== '' || ca2 !== '' || ca3 !== '' || exam !== '';
+            if (hasScores) {
+              const computedTotal = (ca1 || 0) + (ca2 || 0) + (ca3 || 0) + (exam || 0);
+              if (!total) total = computedTotal;
+              const t = total || computedTotal;
+              if (!grade || !remark) {
+                const computed = computeGrade(t);
+                if (!grade) grade = computed.grade;
+                if (!remark) remark = computed.remark;
+              }
+            }
+
             scoresMap[student.id] = {
-              ca1_score: subjectScore.ca1_score ?? '',
-              ca2_score: subjectScore.ca2_score ?? '',
-              ca3_score: subjectScore.ca3_score ?? '',
-              exam_score: subjectScore.exam_score ?? '',
-              total_score: subjectScore.total_score ?? 0,
-              grade: subjectScore.grade ?? '',
-              remark: subjectScore.remark ?? '',
+              id: subjectScore.id,
+              ca1_score: ca1,
+              ca2_score: ca2,
+              ca3_score: ca3,
+              exam_score: exam,
+              total_score: total,
+              grade: grade,
+              remark: remark,
             };
           } else {
             scoresMap[student.id] = {
@@ -240,7 +267,7 @@ const ScoreSheet = () => {
     } finally {
       setLoading(false);
     }
-  }, [formData.sub_level_id, formData.session_id, formData.term_id, formData.subject_id, getErrorMessage]);
+  }, [formData.sub_level_id, formData.session_id, formData.term_id, formData.subject_id, formData.school_id, computeGrade, getErrorMessage]);
 
   useEffect(() => {
     fetchStudentsAndScores();
@@ -303,14 +330,58 @@ const ScoreSheet = () => {
           exam_score: s.exam_score === '' ? 0 : s.exam_score,
         };
       });
-      await bulkUpsertScores({ scores: scoreEntries });
-      setSuccess('Scores saved successfully.');
+      const res = await bulkUpsertScores({ scores: scoreEntries });
+      // The backend returns HTTP 200 even when individual scores fail
+      // validation; it reports them in `errors` / `error_messages`. Surface
+      // those so rows that weren't persisted aren't silently dropped.
+      const payload = res?.data?.data || res?.data || {};
+      const errCount = payload.errors ?? 0;
+      const msgs = Array.isArray(payload.error_messages) ? payload.error_messages : [];
+      if (errCount > 0) {
+        const preview = msgs.slice(0, 2).join('; ');
+        setError(
+          `Saved ${payload.saved ?? 0} of ${scoreEntries.length} score(s). ${errCount} failed` +
+          (preview ? `: ${preview}` : '.')
+        );
+      } else {
+        setSuccess('Scores saved successfully.');
+      }
       fetchStudentsAndScores();
     } catch (err) {
       console.error('Bulk upsert scores error:', err);
       setError(`Failed to save scores (${err?.response?.status ?? 'network error'}): ${getErrorMessage(err, 'Unknown error')}`);
     } finally {
       setSaving(false);
+    }
+  };
+
+  // Update a single captured score (Edit). The backend upserts on the natural
+  // key (student_id, subject_id, term_id), so an existing row is updated in place.
+  const handleUpdateRow = async (student) => {
+    if (!student?.id) return;
+    const s = scores[student.id] || {};
+    setUpdatingId(student.id);
+    setError('');
+    setSuccess('');
+    try {
+      await upsertScore({
+        student_id: student.id,
+        level_id: formData.level_id,
+        sub_level_id: formData.sub_level_id,
+        subject_id: formData.subject_id,
+        term_id: formData.term_id,
+        ca1_score: s.ca1_score === '' ? 0 : s.ca1_score,
+        ca2_score: s.ca2_score === '' ? 0 : s.ca2_score,
+        ca3_score: s.ca3_score === '' ? 0 : s.ca3_score,
+        exam_score: s.exam_score === '' ? 0 : s.exam_score,
+      });
+      setSuccess(`Score updated for ${student.last_name}, ${student.first_name}.`);
+      await fetchStudentsAndScores();
+    } catch (err) {
+      console.error('Update score error:', err);
+      setError(`Failed to update score (${err?.response?.status ?? 'network error'}): ${getErrorMessage(err, 'Unknown error')}`);
+    } finally {
+      setUpdatingId(null);
     }
   };
 
@@ -450,6 +521,7 @@ const ScoreSheet = () => {
                 <th style={{ padding: '12px', textAlign: 'center', width: '90px' }}>Total</th>
                 <th style={{ padding: '12px', textAlign: 'left', minWidth: '120px' }}>Grade</th>
                 <th style={{ padding: '12px', textAlign: 'left', minWidth: '150px' }}>Remark</th>
+                <th style={{ padding: '12px', textAlign: 'center', minWidth: '100px' }}>Actions</th>
               </tr>
             </thead>
             <tbody>
@@ -517,6 +589,27 @@ const ScoreSheet = () => {
                     </td>
                     <td style={{ padding: '10px 12px', color: 'var(--gray)' }}>
                       {score.remark || '—'}
+                    </td>
+                    <td style={{ padding: '10px 12px', textAlign: 'center' }}>
+                      <div style={{ display: 'flex', gap: '6px', justifyContent: 'center', flexWrap: 'wrap' }}>
+                        <button
+                          onClick={() => navigate(`/e-dossier?student_id=${student.id}&session_id=${formData.session_id}&term_id=${formData.term_id}`)}
+                          style={{ padding: '6px 12px', background: '#3e7430', color: 'white', border: 'none', borderRadius: '6px', cursor: 'pointer', fontWeight: '600', fontSize: '0.8rem' }}
+                        >
+                          E-Dossier
+                        </button>
+                        {score.id ? (
+                          <button
+                            onClick={() => handleUpdateRow(student)}
+                            disabled={updatingId === student.id}
+                            style={{ padding: '6px 14px', background: updatingId === student.id ? '#6b7280' : '#f59e0b', color: 'white', border: 'none', borderRadius: '6px', cursor: updatingId === student.id ? 'not-allowed' : 'pointer', fontWeight: '600', fontSize: '0.8rem' }}
+                          >
+                            {updatingId === student.id ? 'Updating…' : 'Update'}
+                          </button>
+                        ) : (
+                          <span style={{ color: 'var(--gray)', fontSize: '0.8rem' }}>—</span>
+                        )}
+                      </div>
                     </td>
                   </tr>
                 );

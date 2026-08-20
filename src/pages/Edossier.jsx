@@ -16,6 +16,8 @@ import {
   getReportCard,
   getGradeConfigs,
   getErrorMessage,
+  computePositionsBulk,
+  getClassSubjectStats,
 } from "../api/client";
 
 const DEFAULT_GRADING_SCALE = [
@@ -41,7 +43,7 @@ function gradeColor(grade) {
     case "D": return "#92400e";
     case "E": return "#7c3aed";
     case "F": return "#991b1b";
-    default:  return "#374151";
+    default: return "#374151";
   }
 }
 
@@ -87,7 +89,7 @@ function BehaviourGrid({ group }) {
         <thead>
           <tr>
             <th className="rc-beh-trait-head">Behaviour</th>
-            {[5,4,3,2,1].map((n) => (
+            {[5, 4, 3, 2, 1].map((n) => (
               <th key={n} className="rc-beh-score-head">{n}</th>
             ))}
           </tr>
@@ -96,7 +98,7 @@ function BehaviourGrid({ group }) {
           {group.traits.map((trait) => (
             <tr key={trait}>
               <td className="rc-beh-trait">{trait}</td>
-              {[5,4,3,2,1].map((n) => (
+              {[5, 4, 3, 2, 1].map((n) => (
                 <td key={n} className="rc-beh-cell" />
               ))}
             </tr>
@@ -141,9 +143,11 @@ export default function Edossier() {
       let termName = "—";
       let className = "—";
       let numInClass = "—";
+      let sublevelId = null;
       let subjectScores = [];
       let gradeConfigs = [];
       let subjectsMap = {};
+      let classStatsMap = {};
       let remarks = "";
       let nextTermDate = "—";
       let principal = "—";
@@ -247,6 +251,25 @@ export default function Edossier() {
             const enrollList = Array.isArray(enrollRes.data) ? enrollRes.data : (enrollRes.data?.data ?? []);
             numInClass = enrollList.length || "—";
           } catch (e) { /* ignore */ }
+        }
+
+        // Compute class positions and fetch per-subject class stats (highest/lowest).
+        const reportCardSubLevelId = rc.sub_level_id || student.sub_level_id;
+        if (rc.term_id && reportCardSubLevelId) {
+          try {
+            await computePositionsBulk(rc.term_id, reportCardSubLevelId);
+          } catch (e) {
+            console.warn("Failed to compute positions:", e);
+          }
+          try {
+            const statsRes = await getClassSubjectStats(rc.term_id, reportCardSubLevelId);
+            const statsList = Array.isArray(statsRes.data) ? statsRes.data : (statsRes.data?.data ?? []);
+            classStatsMap = Object.fromEntries(
+              statsList.map((s) => [s.subject_id, { highest: s.highest_score, lowest: s.lowest_score }])
+            );
+          } catch (e) {
+            console.warn("Failed to load class stats:", e);
+          }
         }
 
         // Load score sheet subject results for this student/session/term.
@@ -378,7 +401,7 @@ export default function Edossier() {
             const enrollList = Array.isArray(enrollRes.data) ? enrollRes.data : (enrollRes.data?.data ?? []);
             const enrollment = enrollList[0];
             if (enrollment) {
-              const sublevelId = enrollment.sub_level_id;
+              sublevelId = enrollment.sub_level_id;
               if (sublevelId && schoolId) {
                 try {
                   const slRes = await getSchoolSubLevels(schoolId);
@@ -404,13 +427,39 @@ export default function Edossier() {
           }
         }
 
-        // Student scores
+        // Compute class positions and fetch per-subject class stats (highest/lowest).
+        if (effectiveTermId && sublevelId) {
+          try {
+            await computePositionsBulk(effectiveTermId, sublevelId);
+          } catch (e) {
+            console.warn("Failed to compute positions:", e);
+          }
+          try {
+            const statsRes = await getClassSubjectStats(effectiveTermId, sublevelId);
+            const statsList = Array.isArray(statsRes.data) ? statsRes.data : (statsRes.data?.data ?? []);
+            classStatsMap = Object.fromEntries(
+              statsList.map((s) => [s.subject_id, { highest: s.highest_score, lowest: s.lowest_score }])
+            );
+          } catch (e) {
+            console.warn("Failed to load class stats:", e);
+          }
+        }
+
+        // Student scores — fetched from the score sheet by student id.
+        // The backend getStudentScores only scopes by session_id, so filter to
+        // the requested term client-side (matching the report_card_id path).
         try {
           const params = {};
           if (effectiveSessionId) params.session_id = effectiveSessionId;
           if (effectiveTermId) params.term_id = effectiveTermId;
           const scoresRes = await getStudentScores(trimmedStudentId, params);
-          subjectScores = Array.isArray(scoresRes.data) ? scoresRes.data : (scoresRes.data?.data ?? []);
+          let fetchedScores = Array.isArray(scoresRes.data)
+            ? scoresRes.data
+            : (scoresRes.data?.data ?? []);
+          if (effectiveTermId) {
+            fetchedScores = fetchedScores.filter((s) => s.term_id === effectiveTermId);
+          }
+          subjectScores = fetchedScores;
         } catch (e) {
           console.warn("Failed to load student scores:", e);
         }
@@ -433,6 +482,7 @@ export default function Edossier() {
         const total = score.total_score ?? score.total ?? (
           (parseFloat(ca1) || 0) + (parseFloat(ca2) || 0) + (parseFloat(ca3) || 0) + (parseFloat(exam) || 0)
         );
+        const subjectId = score.subject_id || score.subject?.id || score.id;
 
         // Grade — use score data first, then compute from grade configs
         let grade = score.grade || "";
@@ -454,8 +504,8 @@ export default function Edossier() {
           position: score.position ?? score.class_position ?? "—",
           grade,
           remark,
-          highest: score.highest_in_class ?? score.class_highest ?? "—",
-          lowest: score.lowest_in_class ?? score.class_lowest ?? "—",
+          highest: score.highest_in_class ?? score.class_highest ?? classStatsMap[subjectId]?.highest ?? "—",
+          lowest: score.lowest_in_class ?? score.class_lowest ?? classStatsMap[subjectId]?.lowest ?? "—",
           average: score.class_average ?? score.subject_average ?? "—",
         };
       });
@@ -899,7 +949,9 @@ export default function Edossier() {
             <div className="rc-header-system">{system}</div>
             <div className="rc-header-school">{school}</div>
           </div>
-          <div className="rc-header-logo-placeholder">SEAL</div>
+          <div className="rc-header-logo-placeholder">
+            <img src="/images/logomoe.jpg" alt="Ministry of Education" className="rc-header-logo" />
+          </div>
         </div>
 
         <div className="rc-bio">
