@@ -55,6 +55,7 @@ import SchoolLogoUpload from './pages/SchoolLogoUpload';
 import ReportCards from './pages/ReportCards';
 import ReportCardView from './pages/ReportCardView';
 import Edossier from './pages/Edossier';
+import LevelUpgrade from './pages/LevelUpgrade';
 
 // Shared navigation map: sidebar/item key -> route path.
 const ROUTE_MAP = {
@@ -91,6 +92,7 @@ const ROUTE_MAP = {
   "school-logo-upload": "/school-logo-upload",
   "report-cards": "/report-cards",
   "e-dossier": "/e-dossier",
+  "level-upgrade": "/level-upgrade",
 };
 
 const PrivateRoute = ({ children }) => {
@@ -103,7 +105,7 @@ const PrivateRoute = ({ children }) => {
   return isAuthenticated ? children : <Navigate to="/login" replace />;
 };
 
-const ADMIN_ROUTES = ["/admindashboard", "/users", "/schools", "/roles", "/permissions", "/zones", "/lgas", "/academic-years", "/terms", "/levels", "/sublevels", "/subjects", "/facilities", "/students", "/register-student", "/enrollments", "/add-enrollment", "/student-dashboard", "/student-profile", "/personnel", "/add-personnel", "/score-config", "/grade-config", "/score-sheet", "/predictions", "/personnel-attendance", "/personnel-profile", "/student-attendance", "/recommendation", "/school-subjects", "/school-logo-upload", "/report-cards", "/e-dossier"];
+const ADMIN_ROUTES = ["/admindashboard", "/users", "/schools", "/roles", "/permissions", "/zones", "/lgas", "/academic-years", "/terms", "/levels", "/sublevels", "/subjects", "/facilities", "/students", "/register-student", "/enrollments", "/add-enrollment", "/student-dashboard", "/student-profile", "/personnel", "/add-personnel", "/score-config", "/grade-config", "/score-sheet", "/predictions", "/personnel-attendance", "/personnel-profile", "/student-attendance", "/recommendation", "/school-subjects", "/school-logo-upload", "/report-cards", "/e-dossier", "/level-upgrade"];
 
 function AdminDashboardRoute() {
   const navigate = useNavigate();
@@ -667,6 +669,22 @@ function SchoolSubjectsRoute() {
   );
 }
 
+function LevelUpgradeRoute() {
+  const navigate = useNavigate();
+  const handleNavigate = (key) => {
+    const path = ROUTE_MAP[key];
+    if (path) navigate(path);
+  };
+
+  return (
+    <PrivateRoute>
+      <AdminPageLayout activeKey="level-upgrade" onNavigate={handleNavigate} permissions={null}>
+        <LevelUpgrade />
+      </AdminPageLayout>
+    </PrivateRoute>
+  );
+}
+
 function AppContent() {
   const location = useLocation();
   const isAdminRoute = ADMIN_ROUTES.some((r) => location.pathname.startsWith(r));
@@ -728,6 +746,7 @@ function AppContent() {
         <Route path="/report-cards/:id" element={<ReportCardViewRoute />} />
         <Route path="/admindashboard" element={<AdminDashboardRoute />} />
         <Route path="/e-dossier" element={<EdossierRoute />} />
+        <Route path="/level-upgrade" element={<LevelUpgradeRoute />} />
       </Routes>
 
       {!isAdminRoute && <Footer />}

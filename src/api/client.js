@@ -353,9 +353,9 @@ export const generateReportCards = (data) => api.post('/api/v1/results/report-ca
 export const getReportCard = (id) => api.get(`/api/v1/results/report-cards/${id}`);
 export const getStudentAllReportCards = (studentId) => api.get(`/api/v1/students/${studentId}/report-cards`);
 export const getStudentCurrentReportCard = (studentId) => api.get(`/api/v1/students/${studentId}/report-card`);
+// Sends { principal_remark, teacher_remark } to update report card remarks.
 export const updateReportCardRemarks = (id, data) => api.put(`/api/v1/results/report-cards/${id}/remarks`, data);
 export const publishReportCard = (id) => api.post(`/api/v1/results/report-cards/${id}/publish`, {});
-export const deleteReportCard = (id) => api.delete(`/api/v1/results/report-cards/${id}`);
 
 // --- Score & Grade Configuration ---
 export const upsertScoreConfig = (data) => api.post('/api/v1/results/score-config', data);

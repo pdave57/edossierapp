@@ -123,6 +123,7 @@ const NAV_GROUPS = [
       // { key: "student-profile", label: "Student Profile",   icon: GraduationCap },
       { key: "student-management", label: "Students", icon: GraduationCap },
       { key: "student-attendance", label: "Attendance", icon: CalendarDays },
+      { key: "level-upgrade", label: "Level Upgrade", icon: TrendingUp },
     ],
   },
   {

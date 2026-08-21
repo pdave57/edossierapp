@@ -6,7 +6,6 @@ import {
   generateReportCards,
   updateReportCardRemarks,
   publishReportCard,
-  deleteReportCard,
   getStudent,
   getSessions,
   getActiveTerm,
@@ -44,9 +43,9 @@ function ReportCards() {
   const [levels, setLevels] = useState([]);
   const [sublevels, setSublevels] = useState([]);
   const [remarkId, setRemarkId] = useState(null);
-  const [remarkText, setRemarkText] = useState("");
+  const [principalRemarkText, setPrincipalRemarkText] = useState("");
+  const [teacherRemarkText, setTeacherRemarkText] = useState("");
   const [publishingId, setPublishingId] = useState(null);
-  const [deletingId, setDeletingId] = useState(null);
   const [bulkPublishing, setBulkPublishing] = useState(false);
   const [bulkProgress, setBulkProgress] = useState({ done: 0, total: 0 });
   const [currentPage, setCurrentPage] = useState(1);
@@ -62,6 +61,10 @@ function ReportCards() {
   const [filterStatus, setFilterStatus] = useState("all");
   const [studentNameById, setStudentNameById] = useState({});
 
+  // Sessions, levels and sublevels are all school-scoped on the backend. Resolve
+  // the school once — an explicit pick wins, then the filter, then the token.
+  const resolvedSchoolId = generateForm.school_id || filterSchool || authSchoolId || "";
+
   const fetchSchools = useCallback(async () => {
     try {
       const res = await getSchools();
@@ -73,16 +76,20 @@ function ReportCards() {
   }, []);
 
   const fetchSessions = useCallback(async () => {
-    const schoolId = generateForm.school_id || filterSchool || authSchoolId || null;
+    // GET /sessions rejects a request with no school_id (400), so wait for one.
+    if (!resolvedSchoolId) {
+      setSessions([]);
+      return;
+    }
     try {
-      const res = await getSessions(1, 200, schoolId);
+      const res = await getSessions(1, 200, resolvedSchoolId);
       const list = Array.isArray(res.data) ? res.data : (res.data?.data ?? []);
       setSessions(list);
     } catch (err) {
       console.error("Sessions fetch error:", err);
       setSessions([]);
     }
-  }, [generateForm.school_id, filterSchool, authSchoolId]);
+  }, [resolvedSchoolId]);
 
   const fetchTerms = useCallback(async () => {
     const sessionId = generateForm.session_id || filterSession || null;
@@ -90,7 +97,7 @@ function ReportCards() {
       let list = [];
       if (sessionId) {
         // Active term for a specific session; falls back to all terms on failure.
-        const res = await getActiveTerm(sessionId, authSchoolId || null);
+        const res = await getActiveTerm(sessionId, resolvedSchoolId || null);
         const raw = Array.isArray(res.data) ? res.data : (res.data?.data ?? res.data ?? []);
         list = Array.isArray(raw) ? raw : [raw];
       } else {
@@ -109,28 +116,26 @@ function ReportCards() {
         setTerms([]);
       }
     }
-  }, [generateForm.session_id, filterSession, authSchoolId]);
+  }, [generateForm.session_id, filterSession, resolvedSchoolId]);
 
   const fetchLevels = useCallback(async () => {
-    const schoolId = generateForm.school_id || filterSchool || authSchoolId || undefined;
     try {
-      const res = await getLevels(1, 200, schoolId);
+      const res = await getLevels(1, 200, resolvedSchoolId || undefined);
       const list = Array.isArray(res.data) ? res.data : (res.data?.data ?? []);
       setLevels(list);
     } catch (err) {
       console.error("Levels fetch error:", err);
       setLevels([]);
     }
-  }, [generateForm.school_id, filterSchool, authSchoolId]);
+  }, [resolvedSchoolId]);
 
   useEffect(() => {
     let cancelled = false;
     const fetchSublevels = async () => {
       try {
         let list = [];
-        const schoolId = generateForm.school_id || filterSchool || authSchoolId;
-        if (schoolId) {
-          const res = await getSchoolSubLevels(schoolId);
+        if (resolvedSchoolId) {
+          const res = await getSchoolSubLevels(resolvedSchoolId);
           list = Array.isArray(res.data) ? res.data : (res.data?.data ?? []);
         }
         if (!cancelled) {
@@ -146,14 +151,15 @@ function ReportCards() {
     };
     fetchSublevels();
     return () => { cancelled = true; };
-  }, [generateForm.school_id, generateForm.level_id, filterSchool, authSchoolId]);
+  }, [resolvedSchoolId, generateForm.level_id]);
 
   const fetchReportCards = useCallback(async () => {
+    const schoolFilter = resolvedSchoolId;
     const sessionFilter = filterSession || generateForm.session_id;
     const termFilter = filterTerm || generateForm.term_id;
     const sublevelFilter = filterSublevel || generateForm.sub_level_id;
 
-    if (!sessionFilter && !termFilter && !sublevelFilter) {
+    if (!schoolFilter && !sessionFilter && !termFilter && !sublevelFilter) {
       setReportCards([]);
       setLoading(false);
       return;
@@ -162,6 +168,7 @@ function ReportCards() {
     setError("");
     try {
       const params = {
+        ...(schoolFilter ? { school_id: schoolFilter } : {}),
         ...(sessionFilter ? { session_id: sessionFilter } : {}),
         ...(termFilter ? { term_id: termFilter } : {}),
         ...(sublevelFilter ? { sub_level_id: sublevelFilter } : {}),
@@ -169,23 +176,20 @@ function ReportCards() {
       const res = await getReportCards(1, 1000, params);
       let list = Array.isArray(res.data) ? res.data : (res.data?.data ?? res.data?.report_cards ?? []);
 
-      // Normalise to the real backend shape: the API reports `published_at`
-      // (not `is_published`) and stores remarks in principal/teacher fields.
       list = list.map((rc) => ({
         ...rc,
         is_published: rc.is_published ?? !!rc.published_at,
         remarks: rc.remarks || rc.principal_remark || rc.teacher_remark || "",
+        principal_remark: rc.principal_remark || "",
+        teacher_remark: rc.teacher_remark || "",
         generated_at: rc.generated_at || rc.created_at || null,
       }));
 
-      // The backend only filters by school_id + term_id, so apply the
-      // session / sublevel / publish-status filters client-side.
       if (sessionFilter) list = list.filter((rc) => rc.session_id === sessionFilter);
       if (sublevelFilter) list = list.filter((rc) => rc.sub_level_id === sublevelFilter);
       if (filterStatus === "published") list = list.filter((rc) => rc.is_published);
       else if (filterStatus === "draft") list = list.filter((rc) => !rc.is_published);
 
-      // Enrich with real student names.
       const studentIds = [...new Set(list.map((rc) => rc.student_id).filter(Boolean))];
       if (studentIds.length > 0) {
         const fetched = await Promise.all(
@@ -212,7 +216,7 @@ function ReportCards() {
     } finally {
       setLoading(false);
     }
-  }, [filterSession, filterTerm, filterSublevel, filterStatus, generateForm.session_id, generateForm.term_id, generateForm.sub_level_id]);
+  }, [filterSession, filterTerm, filterSublevel, filterStatus, resolvedSchoolId, generateForm.session_id, generateForm.term_id, generateForm.sub_level_id]);
 
   useEffect(() => {
     fetchSchools();
@@ -293,12 +297,10 @@ function ReportCards() {
       setSuccess("Report cards generated successfully!");
       setShowGenerateForm(false);
       setGenerateForm(emptyForm);
-      // Apply generate params as filters so they show immediately
       setFilterSchool(payload.school_id);
       setFilterSession(payload.session_id);
       setFilterTerm(payload.term_id);
       setFilterSublevel(payload.sub_level_id);
-      await fetchReportCards();
     } catch (err) {
       console.error("Generate report cards error:", err);
       const message = getErrorMessage(err, "Failed to generate report cards");
@@ -309,12 +311,25 @@ function ReportCards() {
   };
 
   const handleUpdateRemarks = async (id) => {
-    if (!remarkText.trim()) return;
+    if (!principalRemarkText.trim() && !teacherRemarkText.trim()) {
+      setError("Enter a principal or teacher remark before saving.");
+      return;
+    }
+    // The backend remarks payload also carries attendance / total_school_days,
+    // so echo the current values back rather than letting them default to 0.
+    const current = reportCards.find((rc) => rc.id === id) || {};
+    setError("");
     try {
-      await updateReportCardRemarks(id, { remarks: remarkText.trim() });
+      await updateReportCardRemarks(id, {
+        principal_remark: principalRemarkText.trim(),
+        teacher_remark: teacherRemarkText.trim(),
+        attendance: Number(current.attendance) || 0,
+        total_school_days: Number(current.total_school_days) || 0,
+      });
       setSuccess("Remarks updated successfully!");
       setRemarkId(null);
-      setRemarkText("");
+      setPrincipalRemarkText("");
+      setTeacherRemarkText("");
       await fetchReportCards();
     } catch (err) {
       setError(`Failed to update remarks (${err?.response?.status ?? 'network error'}): ${getErrorMessage(err, 'Unknown error')}`);
@@ -331,23 +346,6 @@ function ReportCards() {
       setError(`Failed to publish report card (${err?.response?.status ?? 'network error'}): ${getErrorMessage(err, 'Unknown error')}`);
     } finally {
       setPublishingId(null);
-    }
-  };
-
-  const handleDelete = async (id) => {
-    if (!window.confirm("Are you sure you want to delete this report card? This action cannot be undone.")) {
-      return;
-    }
-    setDeletingId(id);
-    setError("");
-    try {
-      await deleteReportCard(id);
-      setSuccess("Report card deleted successfully!");
-      await fetchReportCards();
-    } catch (err) {
-      setError(`Failed to delete report card (${err?.response?.status ?? 'network error'}): ${getErrorMessage(err, 'Unknown error')}`);
-    } finally {
-      setDeletingId(null);
     }
   };
 
@@ -554,9 +552,10 @@ function ReportCards() {
             <select
               value={filterSession}
               onChange={(e) => { setFilterSession(e.target.value); setCurrentPage(1); }}
-              style={{ width: "100%", padding: "7px 10px", border: "1px solid #d1d5db", borderRadius: "6px", background: "white", fontSize: "0.85rem" }}
+              disabled={!resolvedSchoolId}
+              style={{ width: "100%", padding: "7px 10px", border: "1px solid #d1d5db", borderRadius: "6px", background: resolvedSchoolId ? "white" : "#f3f4f6", fontSize: "0.85rem", cursor: resolvedSchoolId ? "pointer" : "not-allowed" }}
             >
-              <option value="">All sessions</option>
+              <option value="">{resolvedSchoolId ? "All sessions" : "Select a school first"}</option>
               {sessions.map((s) => (
                 <option key={s.id} value={s.id}>{s.name || s.session_name}</option>
               ))}
@@ -580,9 +579,10 @@ function ReportCards() {
             <select
               value={filterSublevel}
               onChange={(e) => { setFilterSublevel(e.target.value); setCurrentPage(1); }}
-              style={{ width: "100%", padding: "7px 10px", border: "1px solid #d1d5db", borderRadius: "6px", background: "white", fontSize: "0.85rem" }}
+              disabled={!resolvedSchoolId}
+              style={{ width: "100%", padding: "7px 10px", border: "1px solid #d1d5db", borderRadius: "6px", background: resolvedSchoolId ? "white" : "#f3f4f6", fontSize: "0.85rem", cursor: resolvedSchoolId ? "pointer" : "not-allowed" }}
             >
-              <option value="">All sublevels</option>
+              <option value="">{resolvedSchoolId ? "All sublevels" : "Select a school first"}</option>
               {sublevels.map((sl) => (
                 <option key={sl.id} value={sl.id}>{sl.name}</option>
               ))}
@@ -601,6 +601,11 @@ function ReportCards() {
             </select>
           </div>
         </div>
+        <p style={{ margin: "10px 0 0", fontSize: "0.78rem", color: "#6b7280" }}>
+          Sessions and sublevels are school-scoped, so pick a school first. The API lists report cards by
+          school + term — select both to populate the table; session and sublevel are then applied to the
+          loaded results.
+        </p>
       </div>
 
       <div style={{ background: "white", borderRadius: "12px", boxShadow: "0 2px 8px rgba(0,0,0,0.1)", overflow: "auto" }}>
@@ -643,46 +648,41 @@ function ReportCards() {
                       <div>
                         <input
                           type="text"
-                          value={remarkText}
-                          onChange={(e) => setRemarkText(e.target.value)}
-                          placeholder="Enter remarks..."
+                          value={principalRemarkText}
+                          onChange={(e) => setPrincipalRemarkText(e.target.value)}
+                          placeholder="Principal remark..."
+                          style={{ width: "100%", padding: "6px 8px", border: "1px solid var(--border)", borderRadius: "4px", marginBottom: "6px" }}
+                        />
+                        <input
+                          type="text"
+                          value={teacherRemarkText}
+                          onChange={(e) => setTeacherRemarkText(e.target.value)}
+                          placeholder="Teacher remark..."
                           style={{ width: "100%", padding: "6px 8px", border: "1px solid var(--border)", borderRadius: "4px", marginBottom: "6px" }}
                         />
                         <div style={{ display: "flex", gap: "6px" }}>
                           <button onClick={() => handleUpdateRemarks(rc.id)} style={{ fontSize: "0.8rem", padding: "4px 8px", background: "#3e7430", color: "white", border: "none", borderRadius: "4px", cursor: "pointer" }}>Save</button>
-                          <button onClick={() => { setRemarkId(null); setRemarkText(""); }} style={{ fontSize: "0.8rem", padding: "4px 8px", background: "var(--bg-light)", border: "1px solid var(--border)", borderRadius: "4px", cursor: "pointer" }}>Cancel</button>
+                          <button onClick={() => { setRemarkId(null); setPrincipalRemarkText(""); setTeacherRemarkText(""); }} style={{ fontSize: "0.8rem", padding: "4px 8px", background: "var(--bg-light)", border: "1px solid var(--border)", borderRadius: "4px", cursor: "pointer" }}>Cancel</button>
                         </div>
                       </div>
                     ) : (
-                      <span style={{ color: "#6b7280", fontSize: "0.9rem" }}>{rc.remarks || "—"}</span>
+                      <div style={{ color: "#6b7280", fontSize: "0.9rem" }}>
+                        {rc.principal_remark && <div><span style={{ fontWeight: "600" }}>Principal:</span> {rc.principal_remark}</div>}
+                        {rc.teacher_remark && <div><span style={{ fontWeight: "600" }}>Teacher:</span> {rc.teacher_remark}</div>}
+                        {!rc.principal_remark && !rc.teacher_remark && (rc.remarks || "—")}
+                      </div>
                     )}
                   </td>
                   <td style={{ padding: "15px", fontSize: "0.9rem" }}>{rc.generated_at ? new Date(rc.generated_at).toLocaleDateString() : "—"}</td>
                   <td style={{ padding: "15px" }}>
                     <div style={{ display: "flex", gap: "6px", flexWrap: "wrap" }}>
                       <button onClick={() => handleViewEdossier(rc)} style={{ fontSize: "0.8rem", padding: "6px 10px", background: "#2563eb", color: "white", border: "none", borderRadius: "4px", cursor: "pointer" }}>View</button>
-                      <button onClick={() => { setRemarkId(rc.id); setRemarkText(rc.remarks || ""); }} style={{ fontSize: "0.8rem", padding: "6px 10px", background: "#f59e0b", color: "white", border: "none", borderRadius: "4px", cursor: "pointer" }}>Remarks</button>
+                      <button onClick={() => { setRemarkId(rc.id); setPrincipalRemarkText(rc.principal_remark || ""); setTeacherRemarkText(rc.teacher_remark || ""); }} style={{ fontSize: "0.8rem", padding: "6px 10px", background: "#f59e0b", color: "white", border: "none", borderRadius: "4px", cursor: "pointer" }}>Remarks</button>
                       {!rc.is_published && (
                         <button onClick={() => handlePublish(rc.id)} disabled={publishingId === rc.id} style={{ fontSize: "0.8rem", padding: "6px 10px", background: "#3e7430", color: "white", border: "none", borderRadius: "4px", cursor: publishingId === rc.id ? "not-allowed" : "pointer", opacity: publishingId === rc.id ? 0.6 : 1 }}>
                           {publishingId === rc.id ? "Publishing..." : "Publish"}
                         </button>
                       )}
-                      <button
-                        onClick={() => handleDelete(rc.id)}
-                        disabled={deletingId === rc.id}
-                        style={{
-                          fontSize: "0.8rem",
-                          padding: "6px 10px",
-                          background: deletingId === rc.id ? "#9ca3af" : "#dc2626",
-                          color: "white",
-                          border: "none",
-                          borderRadius: "4px",
-                          cursor: deletingId === rc.id ? "not-allowed" : "pointer",
-                          opacity: deletingId === rc.id ? 0.6 : 1,
-                        }}
-                      >
-                        {deletingId === rc.id ? "Deleting..." : "Delete"}
-                      </button>
                     </div>
                   </td>
                 </tr>
@@ -691,6 +691,10 @@ function ReportCards() {
           </tbody>
         </table>
       </div>
+
+      <p style={{ margin: "10px 0 0", fontSize: "0.78rem", color: "#6b7280" }}>
+        Note: report cards cannot be deleted here — the API exposes no delete endpoint for report cards.
+      </p>
 
       {totalPages > 1 && (
         <div style={{ display: "flex", justifyContent: "flex-end", alignItems: "center", gap: "8px", marginTop: "20px", flexWrap: "wrap" }}>
