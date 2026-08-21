@@ -58,7 +58,9 @@ const Lgas = () => {
       const status = err?.response?.status;
       const responseData = err?.response?.data;
       let msg;
-      if (typeof responseData?.message === 'string') {
+      if (typeof responseData?.error?.message === 'string') {
+        msg = responseData.error.message;
+      } else if (typeof responseData?.message === 'string') {
         msg = responseData.message;
       } else if (typeof responseData?.error === 'string') {
         msg = responseData.error;
@@ -137,7 +139,9 @@ const Lgas = () => {
       console.error('Create lga error:', err);
       const status = err?.response?.status;
       const backendMsg =
-        typeof err?.response?.data?.message === 'string'
+        typeof err?.response?.data?.error?.message === 'string'
+          ? err?.response?.data?.error?.message
+          : typeof err?.response?.data?.message === 'string'
           ? err?.response?.data?.message
           : typeof err?.response?.data?.error === 'string'
           ? err?.response?.data?.error
@@ -155,6 +159,10 @@ const Lgas = () => {
   const handleUpdateLga = async (e) => {
     e.preventDefault();
     if (!selectedLga) return;
+    if (!formData.state_id) {
+      setError('Please select a state for this LGA.');
+      return;
+    }
     if (!formData.name.trim()) {
       setError('LGA name is required.');
       return;
@@ -169,7 +177,12 @@ const Lgas = () => {
     }
     setError('');
     try {
-      const payload = { name: formData.name.trim(), code: formData.code.trim(), zone_id: formData.zone_id };
+      const payload = {
+        name: formData.name.trim(),
+        code: formData.code.trim(),
+        state_id: formData.state_id,
+        zone_id: formData.zone_id,
+      };
       await updateLga(selectedLga.id, payload);
       await fetchLgasByState(formData.state_id || selectedStateId);
       setShowModal(false);
@@ -177,14 +190,20 @@ const Lgas = () => {
       console.error('Update lga error:', err);
       const status = err?.response?.status;
       const backendMsg =
-        typeof err?.response?.data?.message === 'string'
+        typeof err?.response?.data?.error?.message === 'string'
+          ? err?.response?.data?.error?.message
+          : typeof err?.response?.data?.message === 'string'
           ? err?.response?.data?.message
           : typeof err?.response?.data?.error === 'string'
           ? err?.response?.data?.error
           : typeof err?.message === 'string'
           ? err?.message
           : JSON.stringify(err?.response?.data || err?.message || 'Unknown error');
-      setError(`Failed to update lga (${status ?? 'network error'}): ${backendMsg}`);
+      const permissionHint =
+        status === 401 || status === 403
+          ? ' You do not have permission to update LGAs. Contact an administrator.'
+          : '';
+      setError(`Failed to update lga (${status ?? 'network error'}): ${backendMsg}${permissionHint}`);
     }
   };
 
@@ -202,7 +221,9 @@ const Lgas = () => {
     } catch (err) {
       console.error('Delete lga error:', err);
       const status = err?.response?.status;
-      const backendMsg = typeof err?.response?.data?.message === 'string'
+      const backendMsg = typeof err?.response?.data?.error?.message === 'string'
+        ? err?.response?.data?.error?.message
+        : typeof err?.response?.data?.message === 'string'
         ? err?.response?.data?.message
         : typeof err?.response?.data?.error === 'string'
         ? err?.response?.data?.error
@@ -438,7 +459,7 @@ const Lgas = () => {
                   <label style={{ display: 'block', marginBottom: '5px', fontWeight: '500' }}>State</label>
                   <select
                     value={formData.state_id}
-                    onChange={(e) => setFormData({ ...formData, state_id: e.target.value })}
+                    onChange={(e) => setFormData({ ...formData, state_id: e.target.value, zone_id: '' })}
                     disabled={modalMode === 'view'}
                     required
                     style={{
