@@ -71,6 +71,74 @@ function computeGrade(total, configs) {
   return { grade: "", remark: "" };
 }
 
+/**
+ * Resolve a score record's total on the same basis as the subject rows: an
+ * explicit total when the backend supplies one, otherwise the sum of the CA and
+ * exam components. Returns null when the record carries no usable figures.
+ */
+function scoreTotal(score) {
+  if (!score) return null;
+  const direct = score.total_score ?? score.total;
+  if (direct !== undefined && direct !== null && direct !== "") {
+    const parsed = parseFloat(direct);
+    return isNaN(parsed) ? null : parsed;
+  }
+  const parts = [
+    score.ca1_score ?? score.ca_score ?? score.ca1,
+    score.ca2_score ?? score.ca2,
+    score.ca3_score ?? score.ca3,
+    score.exam_score ?? score.exam,
+  ];
+  if (parts.every((p) => p === undefined || p === null || p === "")) return null;
+  return parts.reduce((sum, p) => sum + (parseFloat(p) || 0), 0);
+}
+
+/**
+ * Average each subject's total across a class roster, keyed by subject id.
+ *
+ * The API exposes no bulk class-scores endpoint, so scores are fetched per
+ * student (the same fanout ScoreSheet.jsx uses) in small batches to avoid
+ * firing one request per student simultaneously. Only positive totals count —
+ * a zero/blank total means "not scored yet" elsewhere on this page, so
+ * including them would drag every average down.
+ */
+async function computeSubjectAverages(studentIds, sessionId, termId) {
+  if (!studentIds || studentIds.length === 0) return {};
+
+  const params = {};
+  if (sessionId) params.session_id = sessionId;
+  if (termId) params.term_id = termId;
+
+  const collected = [];
+  const batchSize = 8;
+  for (let i = 0; i < studentIds.length; i += batchSize) {
+    const batch = await Promise.all(
+      studentIds.slice(i, i + batchSize).map((id) =>
+        getStudentScores(id, params)
+          .then((res) => (Array.isArray(res.data) ? res.data : (res.data?.data ?? [])))
+          .catch(() => [])
+      )
+    );
+    batch.forEach((scores) => collected.push(...scores));
+  }
+
+  const tally = {};
+  collected.forEach((score) => {
+    // getStudentScores only scopes by session, so drop other terms here too.
+    if (termId && score.term_id && score.term_id !== termId) return;
+    const subjectId = score.subject_id || score.subject?.id;
+    const total = scoreTotal(score);
+    if (!subjectId || total == null || total <= 0) return;
+    if (!tally[subjectId]) tally[subjectId] = { sum: 0, count: 0 };
+    tally[subjectId].sum += total;
+    tally[subjectId].count += 1;
+  });
+
+  return Object.fromEntries(
+    Object.entries(tally).map(([subjectId, { sum, count }]) => [subjectId, sum / count])
+  );
+}
+
 /** Generate a general remark based on average score */
 function generateGeneralRemark(avgScore) {
   if (avgScore == null || isNaN(avgScore)) return "—";
@@ -148,6 +216,8 @@ export default function Edossier() {
       let gradeConfigs = [];
       let subjectsMap = {};
       let classStatsMap = {};
+      let subjectAverages = {};
+      let classStudentIds = [];
       let remarks = "";
       let nextTermDate = "—";
       let principal = "—";
@@ -250,6 +320,7 @@ export default function Edossier() {
             });
             const enrollList = Array.isArray(enrollRes.data) ? enrollRes.data : (enrollRes.data?.data ?? []);
             numInClass = enrollList.length || "—";
+            classStudentIds = enrollList.map((en) => en.student_id || en.student?.id).filter(Boolean);
           } catch (e) { /* ignore */ }
         }
 
@@ -265,10 +336,26 @@ export default function Edossier() {
             const statsRes = await getClassSubjectStats(rc.term_id, reportCardSubLevelId);
             const statsList = Array.isArray(statsRes.data) ? statsRes.data : (statsRes.data?.data ?? []);
             classStatsMap = Object.fromEntries(
-              statsList.map((s) => [s.subject_id, { highest: s.highest_score, lowest: s.lowest_score }])
+              statsList.map((s) => [s.subject_id, {
+                highest: s.highest_score,
+                lowest: s.lowest_score,
+                // The stats endpoint may already carry a class average; accept
+                // whichever key it uses rather than recomputing it client-side.
+                average: s.average_score ?? s.avg_score ?? s.average ?? s.mean_score ?? null,
+              }])
             );
           } catch (e) {
             console.warn("Failed to load class stats:", e);
+          }
+
+          // Fall back to computing the per-subject class average locally when
+          // the stats endpoint did not return one.
+          if (!Object.values(classStatsMap).some((s) => s.average != null)) {
+            try {
+              subjectAverages = await computeSubjectAverages(classStudentIds, rc.session_id, rc.term_id);
+            } catch (e) {
+              console.warn("Failed to compute subject averages:", e);
+            }
           }
         }
 
@@ -419,6 +506,7 @@ export default function Edossier() {
                   });
                   const classEnrollList = Array.isArray(classEnrollRes.data) ? classEnrollRes.data : (classEnrollRes.data?.data ?? []);
                   numInClass = classEnrollList.length || "—";
+                  classStudentIds = classEnrollList.map((en) => en.student_id || en.student?.id).filter(Boolean);
                 } catch (e) { /* ignore */ }
               }
             }
@@ -438,10 +526,26 @@ export default function Edossier() {
             const statsRes = await getClassSubjectStats(effectiveTermId, sublevelId);
             const statsList = Array.isArray(statsRes.data) ? statsRes.data : (statsRes.data?.data ?? []);
             classStatsMap = Object.fromEntries(
-              statsList.map((s) => [s.subject_id, { highest: s.highest_score, lowest: s.lowest_score }])
+              statsList.map((s) => [s.subject_id, {
+                highest: s.highest_score,
+                lowest: s.lowest_score,
+                // The stats endpoint may already carry a class average; accept
+                // whichever key it uses rather than recomputing it client-side.
+                average: s.average_score ?? s.avg_score ?? s.average ?? s.mean_score ?? null,
+              }])
             );
           } catch (e) {
             console.warn("Failed to load class stats:", e);
+          }
+
+          // Fall back to computing the per-subject class average locally when
+          // the stats endpoint did not return one.
+          if (!Object.values(classStatsMap).some((s) => s.average != null)) {
+            try {
+              subjectAverages = await computeSubjectAverages(classStudentIds, effectiveSessionId, effectiveTermId);
+            } catch (e) {
+              console.warn("Failed to compute subject averages:", e);
+            }
           }
         }
 
@@ -479,9 +583,7 @@ export default function Edossier() {
         const ca2 = score.ca2_score ?? score.ca2 ?? "";
         const ca3 = score.ca3_score ?? score.ca3 ?? "";
         const exam = score.exam_score ?? score.exam ?? "";
-        const total = score.total_score ?? score.total ?? (
-          (parseFloat(ca1) || 0) + (parseFloat(ca2) || 0) + (parseFloat(ca3) || 0) + (parseFloat(exam) || 0)
-        );
+        const total = score.total_score ?? score.total ?? (scoreTotal(score) ?? 0);
         const subjectId = score.subject_id || score.subject?.id || score.id;
 
         // Grade — use score data first, then compute from grade configs
@@ -492,6 +594,15 @@ export default function Edossier() {
           grade = computed.grade;
           remark = computed.remark;
         }
+
+        // Class average for this subject: an explicit backend figure wins, then
+        // the stats endpoint, then the roster average computed above.
+        const rawAverage =
+          score.class_average ??
+          score.subject_average ??
+          classStatsMap[subjectId]?.average ??
+          subjectAverages[subjectId];
+        const parsedAverage = rawAverage === "" || rawAverage == null ? NaN : parseFloat(rawAverage);
 
         return {
           sn: idx + 1,
@@ -506,7 +617,7 @@ export default function Edossier() {
           remark,
           highest: score.highest_in_class ?? score.class_highest ?? classStatsMap[subjectId]?.highest ?? "—",
           lowest: score.lowest_in_class ?? score.class_lowest ?? classStatsMap[subjectId]?.lowest ?? "—",
-          average: score.class_average ?? score.subject_average ?? "—",
+          average: isNaN(parsedAverage) ? "—" : parsedAverage.toFixed(1),
         };
       });
 
